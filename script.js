@@ -1,0 +1,467 @@
+const { ipcRenderer } = require('electron');
+const DEFAULT_KEYS = require('./keys.cjs');
+
+const JOYSTICK_DISTANCE = 35;
+const POPUP_WIDTH       = 200;
+const KEY_W             = 65;   // used for popup positioning
+const CONTENT_W         = 665;  // used for popup flip detection
+
+// DOM refs
+const overlay           = document.getElementById("overlay-visuals");
+const overlayContent    = document.getElementById("overlay-content");
+const optionsUi         = document.getElementById("options-ui");
+const stick             = document.getElementById("joystick-stick");
+const optionsButton     = document.getElementById("options-button");
+const optionsPanel      = document.getElementById("options-panel");
+const scaleSlider       = document.getElementById("scale-slider");
+const opacitySlider     = document.getElementById("opacity-slider");
+const colorPicker       = document.getElementById("color-picker");
+const keyBgPicker       = document.getElementById("key-bg-picker");
+const unlockBtn         = document.getElementById("unlock-btn");
+const clickthroughBtn   = document.getElementById("clickthrough-btn");
+const resetPositionBtn  = document.getElementById("reset-position-btn");
+const monitorBtn        = document.getElementById("monitor-btn");
+const keyPopup          = document.getElementById("key-popup");
+const keyPopupTitle     = document.getElementById("key-popup-title");
+const keyPopupClose     = document.getElementById("key-popup-close");
+const popupLabelInput   = document.getElementById("popup-label-input");
+const popupKeybindInput = document.getElementById("popup-keybind-input");
+
+// Runtime state
+const movementState = { w: false, a: false, s: false, d: false };
+let isClickthrough    = false;
+let isUnlocked        = false;
+let isDragging        = false;
+let currentEditingKey = null;
+let dragStartX, dragStartY, overlayStartX, overlayStartY;
+let displays            = [];
+let currentDisplayId    = null;
+let currentDisplayBounds = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
+
+// Persisted settings
+let overlayScale   = parseFloat(localStorage.getItem("overlayScale"))   || 1;
+let overlayOpacity = parseFloat(localStorage.getItem("overlayOpacity")) || 1;
+let accentColor    = localStorage.getItem("accentColor") || "#ffffff";
+let keyBgColor     = localStorage.getItem("keyBgColor")  || "#0f0f0f";
+
+// Key data — merge defaults with any user-saved overrides
+const savedKeybinds = JSON.parse(localStorage.getItem("keybinds") || "{}");
+const keys = DEFAULT_KEYS.map(k => ({ ...k, ...(savedKeybinds[k.id] || {}) }));
+const keyMap = {};
+
+
+
+/* -----------------------------
+   JOYSTICK
+----------------------------- */
+
+function updateJoystick() {
+    const x = (movementState.d ? JOYSTICK_DISTANCE : 0) - (movementState.a ? JOYSTICK_DISTANCE : 0);
+    const y = (movementState.s ? JOYSTICK_DISTANCE : 0) - (movementState.w ? JOYSTICK_DISTANCE : 0);
+    stick.style.transform = `translate(${x}px, ${y}px)`;
+}
+
+
+
+/* -----------------------------
+   WEBSOCKET
+----------------------------- */
+
+let socket;
+
+function connectWebSocket() {
+    socket = new WebSocket("ws://localhost:8765");
+
+    socket.onopen  = () => console.log("WebSocket connected");
+    socket.onerror = () => {};
+
+    socket.onclose = () => {
+        console.log("WebSocket closed, retrying in 1s...");
+        Object.keys(movementState).forEach(k => movementState[k] = false);
+        updateJoystick();
+        document.querySelectorAll(".key.active").forEach(el => el.classList.remove("active"));
+        setTimeout(connectWebSocket, 1000);
+    };
+
+    socket.onmessage = (event) => {
+        const active = document.activeElement;
+        if (active === popupLabelInput || active === popupKeybindInput) return;
+
+        const { key, action } = JSON.parse(event.data);
+
+        if (key in movementState) movementState[key] = action === "down";
+        updateJoystick();
+
+        const el = document.getElementById(keyMap[key]);
+        if (!el) return;
+        el.classList.toggle("active", action === "down");
+    };
+}
+
+
+
+/* -----------------------------
+   OPTIONS PANEL
+----------------------------- */
+
+optionsButton.addEventListener("click", () => {
+    const opening = optionsPanel.style.display !== "flex";
+    optionsPanel.style.display = opening ? "flex" : "none";
+    overlayContent.classList.toggle("edit-mode", opening);
+    if (!opening) closeKeyPopup();
+});
+
+
+
+/* -----------------------------
+   SCALE
+----------------------------- */
+
+function updateOverlayScale() {
+    overlayContent.style.transform = `scale(${overlayScale})`;
+}
+
+scaleSlider.value = overlayScale;
+scaleSlider.addEventListener("input", () => {
+    overlayScale = parseFloat(scaleSlider.value);
+    localStorage.setItem("overlayScale", overlayScale);
+    updateOverlayScale();
+});
+
+
+
+/* -----------------------------
+   OPACITY
+----------------------------- */
+
+function updateOverlayOpacity() {
+    overlayContent.style.opacity = overlayOpacity;
+}
+
+opacitySlider.value = overlayOpacity;
+opacitySlider.addEventListener("input", () => {
+    overlayOpacity = parseFloat(opacitySlider.value);
+    localStorage.setItem("overlayOpacity", overlayOpacity);
+    updateOverlayOpacity();
+});
+
+
+
+/* -----------------------------
+   ACCENT COLOR
+----------------------------- */
+
+function applyAccentColor(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const fg = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? "#000000" : "#ffffff";
+    document.documentElement.style.setProperty("--accent",    hex);
+    document.documentElement.style.setProperty("--accent-bg", `rgba(${r},${g},${b},0.15)`);
+    document.documentElement.style.setProperty("--accent-fg", fg);
+}
+
+colorPicker.value = accentColor;
+colorPicker.addEventListener("input", () => {
+    accentColor = colorPicker.value;
+    localStorage.setItem("accentColor", accentColor);
+    applyAccentColor(accentColor);
+});
+
+function applyKeyBgColor(hex) {
+    document.documentElement.style.setProperty("--key-bg", hex);
+}
+
+keyBgPicker.value = keyBgColor;
+keyBgPicker.addEventListener("input", () => {
+    keyBgColor = keyBgPicker.value;
+    localStorage.setItem("keyBgColor", keyBgColor);
+    applyKeyBgColor(keyBgColor);
+});
+
+
+
+/* -----------------------------
+   UNLOCK / DRAG
+----------------------------- */
+
+overlay.addEventListener("mousedown", (e) => {
+    if (!isUnlocked) return;
+    isDragging    = true;
+    dragStartX    = e.clientX;
+    dragStartY    = e.clientY;
+    overlayStartX = parseInt(overlay.style.left) || 0;
+    overlayStartY = parseInt(overlay.style.top)  || 0;
+    overlay.style.cursor = "grabbing";
+});
+
+document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    overlay.style.left = (overlayStartX + e.clientX - dragStartX) + "px";
+    overlay.style.top  = (overlayStartY + e.clientY - dragStartY) + "px";
+});
+
+document.addEventListener("mouseup", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    overlay.style.cursor = "grab";
+    localStorage.setItem("overlayX", overlay.style.left);
+    localStorage.setItem("overlayY", overlay.style.top);
+});
+
+unlockBtn.addEventListener("click", () => {
+    isUnlocked = !isUnlocked;
+    unlockBtn.textContent = isUnlocked ? "Lock Position" : "Unlock Position";
+    unlockBtn.classList.toggle("active", isUnlocked);
+    overlay.style.cursor = isUnlocked ? "grab" : "";
+});
+
+
+
+/* -----------------------------
+   CLICKTHROUGH
+----------------------------- */
+
+function setClickthrough(value) {
+    isClickthrough = value;
+    ipcRenderer.send("set-clickthrough", value);
+    clickthroughBtn.textContent = value ? "Disable Clickthrough" : "Enable Clickthrough";
+    clickthroughBtn.classList.toggle("active", value);
+    if (value) {
+        optionsPanel.style.display = "none";
+        overlayContent.classList.remove("edit-mode");
+        closeKeyPopup();
+    }
+}
+
+optionsUi.addEventListener("mouseenter", () => { if (isClickthrough) ipcRenderer.send("set-clickthrough", false); });
+optionsUi.addEventListener("mouseleave", () => { if (isClickthrough) ipcRenderer.send("set-clickthrough", true);  });
+
+clickthroughBtn.addEventListener("click", () => setClickthrough(!isClickthrough));
+
+resetPositionBtn.addEventListener("click", resetPosition);
+
+function resetPosition() {
+    overlay.style.left = "100px";
+    overlay.style.top  = "100px";
+    localStorage.setItem("overlayX", "100px");
+    localStorage.setItem("overlayY", "100px");
+}
+
+
+
+/* -----------------------------
+   MONITOR SWITCHING
+----------------------------- */
+
+function updateMonitorBtn() {
+    const idx = displays.findIndex(d => d.id === currentDisplayId);
+    if (displays.length <= 1) { monitorBtn.style.display = "none"; return; }
+    monitorBtn.style.display = "";
+    const d = displays[idx] || displays[0];
+    monitorBtn.textContent = `Monitor: ${idx + 1} / ${displays.length}  (${d.bounds.width}×${d.bounds.height})`;
+}
+
+async function switchToDisplay(displayId) {
+    const bounds = await ipcRenderer.invoke("move-to-display", displayId);
+    if (!bounds) return;
+    currentDisplayId     = displayId;
+    currentDisplayBounds = { x: 0, y: 0, width: bounds.width, height: bounds.height };
+    localStorage.setItem("displayId", String(displayId));
+    // Reset position so the overlay is visible on the new display
+    overlay.style.left = "100px";
+    overlay.style.top  = "100px";
+    localStorage.setItem("overlayX", "100px");
+    localStorage.setItem("overlayY", "100px");
+    updateMonitorBtn();
+}
+
+monitorBtn.addEventListener("click", () => {
+    if (displays.length <= 1) return;
+    const idx  = displays.findIndex(d => d.id === currentDisplayId);
+    const next = displays[(idx + 1) % displays.length];
+    switchToDisplay(next.id);
+});
+
+// F8/F9 come from globalShortcut in main.js so they fire even when a game has focus
+ipcRenderer.on("global-key", (_event, key) => {
+    const editingPopup = document.activeElement === popupLabelInput ||
+                         document.activeElement === popupKeybindInput;
+    if (key === "F8" && !editingPopup) setClickthrough(!isClickthrough);
+    if (key === "F9") resetPosition();
+});
+
+
+
+/* -----------------------------
+   KEY BUTTONS
+----------------------------- */
+
+keys.forEach(keyData => {
+    const el = document.createElement("div");
+    el.classList.add("key");
+    el.id        = keyData.id;
+    el.innerText = keyData.label;
+    el.style.top  = keyData.top  + "px";
+    el.style.left = keyData.left + "px";
+    overlayContent.appendChild(el);
+    keyMap[keyData.keybind] = keyData.id;
+
+    el.addEventListener("click", (e) => {
+        if (optionsPanel.style.display !== "flex" || isClickthrough) return;
+        e.stopPropagation();
+        showKeyPopup(keyData);
+    });
+});
+
+
+
+/* -----------------------------
+   KEY POPUP
+----------------------------- */
+
+function normalizeKey(jsKey) {
+    const aliases = {
+        " ": "space", "Escape": "esc", "Enter": "enter",
+        "Backspace": "backspace", "Tab": "tab", "Delete": "delete",
+        "ArrowUp": "up", "ArrowDown": "down", "ArrowLeft": "left", "ArrowRight": "right",
+    };
+    return aliases[jsKey] || jsKey.toLowerCase();
+}
+
+function saveKeybinds() {
+    const data = {};
+    keys.forEach(k => { data[k.id] = { label: k.label, keybind: k.keybind }; });
+    localStorage.setItem("keybinds", JSON.stringify(data));
+}
+
+function closeKeyPopup() {
+    keyPopup.style.display = "none";
+    currentEditingKey = null;
+}
+
+function commitLabel() {
+    if (!currentEditingKey) return;
+    currentEditingKey.label = popupLabelInput.value;
+    const el = document.getElementById(currentEditingKey.id);
+    if (el) el.innerText = currentEditingKey.label;
+    saveKeybinds();
+}
+
+function commitKeybind() {
+    if (!currentEditingKey) return;
+    const newBind = popupKeybindInput.value.trim();
+    if (!newBind || newBind === currentEditingKey.keybind) return;
+    delete keyMap[currentEditingKey.keybind];
+    currentEditingKey.keybind = newBind;
+    keyMap[newBind] = currentEditingKey.id;
+    saveKeybinds();
+}
+
+function showKeyPopup(keyData) {
+    currentEditingKey         = keyData;
+    keyPopupTitle.textContent = keyData.label || keyData.id;
+    popupLabelInput.value     = keyData.label;
+    popupKeybindInput.value   = keyData.keybind;
+    popupKeybindInput.classList.remove("capturing");
+
+    const scaledTop  = keyData.top  * overlayScale;
+    const scaledLeft = keyData.left * overlayScale;
+    const scaledKeyW = KEY_W        * overlayScale;
+
+    let popupLeft = scaledLeft + scaledKeyW + 8;
+    if (popupLeft + POPUP_WIDTH > CONTENT_W * overlayScale) popupLeft = scaledLeft - POPUP_WIDTH - 8;
+
+    keyPopup.style.top     = Math.max(0, scaledTop)  + "px";
+    keyPopup.style.left    = Math.max(0, popupLeft)  + "px";
+    keyPopup.style.display = "block";
+    popupLabelInput.focus();
+    popupLabelInput.select();
+}
+
+keyPopupClose.addEventListener("click", (e) => {
+    e.stopPropagation();
+    commitLabel();
+    commitKeybind();
+    closeKeyPopup();
+});
+
+popupLabelInput.addEventListener("blur",    commitLabel);
+popupLabelInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter")  { e.preventDefault(); popupKeybindInput.focus(); }
+    if (e.key === "Escape") { e.preventDefault(); closeKeyPopup(); }
+});
+
+popupKeybindInput.addEventListener("focus", () => {
+    popupKeybindInput.classList.add("capturing");
+    popupKeybindInput.value = "";
+});
+
+popupKeybindInput.addEventListener("keydown", (e) => {
+    e.preventDefault();
+    const key = normalizeKey(e.key);
+    if (key === "escape") { closeKeyPopup(); return; }
+    if (["control", "shift", "alt"].includes(key)) return;
+    const parts = [];
+    if (e.ctrlKey)  parts.push("ctrl");
+    if (e.shiftKey) parts.push("shift");
+    if (e.altKey)   parts.push("alt");
+    parts.push(key);
+    popupKeybindInput.value = parts.join("+");
+});
+
+popupKeybindInput.addEventListener("blur", () => {
+    popupKeybindInput.classList.remove("capturing");
+    commitKeybind();
+});
+
+document.addEventListener("click", (e) => {
+    if (keyPopup.style.display !== "block") return;
+    if (!keyPopup.contains(e.target) && !e.target.classList.contains("key")) closeKeyPopup();
+});
+
+
+
+/* -----------------------------
+   INITIALIZE
+----------------------------- */
+
+(async () => {
+    displays = await ipcRenderer.invoke("get-displays");
+
+    // Restore the previously used display, fall back to primary
+    const savedId      = parseInt(localStorage.getItem("displayId") || "0");
+    const targetDisplay = displays.find(d => d.id === savedId)
+                       || displays.find(d => d.isPrimary)
+                       || displays[0];
+
+    const bounds = await ipcRenderer.invoke("move-to-display", targetDisplay.id);
+    currentDisplayId     = targetDisplay.id;
+    currentDisplayBounds = bounds
+        ? { x: 0, y: 0, width: bounds.width, height: bounds.height }
+        : { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
+
+    updateMonitorBtn();
+
+    let startX = parseInt(localStorage.getItem("overlayX")) || 100;
+    let startY = parseInt(localStorage.getItem("overlayY")) || 100;
+
+    // If the options button (at left+14, top+174) would be off-screen, reset
+    const optX = startX + 14;
+    const optY = startY + 174;
+    if (optX < 0 || optY < 0 || optX > currentDisplayBounds.width || optY > currentDisplayBounds.height) {
+        startX = 100;
+        startY = 100;
+        localStorage.setItem("overlayX", "100px");
+        localStorage.setItem("overlayY", "100px");
+    }
+
+    overlay.style.left = startX + "px";
+    overlay.style.top  = startY + "px";
+
+    connectWebSocket();
+    applyAccentColor(accentColor);
+    applyKeyBgColor(keyBgColor);
+    updateOverlayScale();
+    updateOverlayOpacity();
+})();

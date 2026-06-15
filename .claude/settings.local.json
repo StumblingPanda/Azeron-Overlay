@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile\\(\"c:\\\\Users\\\\izeto\\\\Desktop\\\\Azeron-overlay\\\\Assets\\\\azeron.png\"\\); \"Width: $\\($img.Width\\), Height: $\\($img.Height\\)\"; $img.Dispose\\(\\))",
+      "Bash(taskkill /f /im python.exe)",
+      "PowerShell(taskkill /F /IM python.exe)",
+      "Bash(ls \"C:\\\\Users\\\\izeto\\\\AppData\\\\Roaming\" | grep -i azeron)",
+      "Read(//c/Users/izeto/AppData/Roaming/**)",
+      "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\izeto\\\\AppData\\\\Roaming\\\\azeron-overlay\\\\Local Storage\\\\leveldb\")"
+    ]
+  }
+}

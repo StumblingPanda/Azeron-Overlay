@@ -1,0 +1,290 @@
+:root {
+    --accent:    #ffffff;
+    --accent-bg: rgba(255, 255, 255, 0.15);
+    --accent-fg: #000000;
+    --key-bg:    #0f0f0f;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: transparent;
+}
+
+#overlay-visuals {
+    position: absolute;
+}
+
+#overlay-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+}
+
+/* ---- JOYSTICK ---- */
+
+#joystick-container {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    left: 434px;
+    top: 286px;
+}
+
+#joystick-ring {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #2d2d2d, #0d0d0d);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.7),
+        inset 0 4px 12px rgba(0, 0, 0, 0.9),
+        inset 0 -1px 4px rgba(255, 255, 255, 0.06);
+}
+
+#joystick-stick {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff, #c0c0c0 40%, #707070);
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.6),
+        inset 0 1px 4px rgba(255, 255, 255, 0.9);
+    left: 35px;
+    top: 35px;
+    transition: transform 0.06s ease-out;
+}
+
+/* ---- KEY BUTTONS ---- */
+
+.key {
+    position: absolute;
+    width: 65px;
+    height: 83px;
+    background: var(--key-bg);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    color: var(--accent);
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 1.3;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, sans-serif;
+    padding: 4px;
+    box-sizing: border-box;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    user-select: none;
+    cursor: default;
+}
+
+.edit-mode .key {
+    cursor: pointer;
+    outline: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.key.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+}
+
+/* ---- OPTIONS UI ---- */
+
+#options-ui {
+    position: absolute;
+    top: 174px;
+    left: 14px;
+    z-index: 99999;
+}
+
+#options-button {
+    width: auto;
+    height: 38px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(20, 20, 20, 0.9);
+    color: white;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+#options-button:hover {
+    background: rgba(50, 50, 50, 0.95);
+}
+
+#options-panel {
+    margin-top: 8px;
+    width: 300px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    padding: 14px;
+    border-radius: 14px;
+    background: rgba(15, 15, 15, 0.97);
+    border: 1px solid #444;
+    color: white;
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    box-sizing: border-box;
+}
+
+.options-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.options-title {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #333;
+}
+
+.options-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.options-row label {
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.options-row input[type="range"] {
+    flex: 1;
+}
+
+.options-row input[type="color"] {
+    width: 40px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.options-btn {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #555;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.options-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.options-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #aaa;
+}
+
+/* ---- KEY POPUP ---- */
+
+#key-popup {
+    position: absolute;
+    display: none;
+    width: 200px;
+    background: rgba(15, 15, 15, 0.97);
+    border: 1px solid #555;
+    border-radius: 10px;
+    padding: 10px 12px 12px;
+    z-index: 99998;
+    box-sizing: border-box;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.popup-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.popup-title-row span {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+}
+
+.popup-title-row button {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.popup-title-row button:hover {
+    color: #ccc;
+}
+
+.popup-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.popup-row:last-child {
+    margin-bottom: 0;
+}
+
+.popup-row label {
+    font-size: 11px;
+    color: #888;
+    width: 30px;
+    flex-shrink: 0;
+}
+
+.popup-row input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: white;
+    padding: 5px 7px;
+    font-size: 11px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.popup-row input:focus {
+    border-color: #888;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+#popup-keybind-input.capturing {
+    border-color: #f0a500;
+    color: #f0a500;
+}

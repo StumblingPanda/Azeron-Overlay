@@ -1,0 +1,19 @@
+{
+  "name": "azeron-overlay",
+  "version": "1.0.0",
+  "main": "main.js",
+  "type": "module",
+
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+
+  "build": {
+    "appId": "com.stumblingpanda.azeronoverlay",
+    "productName": "AzeronOverlay",
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Azeron Overlay
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
+
+</head>
+
+<body>
+
+    <div id="overlay-visuals">
+
+        <div id="options-ui">
+
+            <button id="options-button">⚙ Options</button>
+
+            <div id="options-panel">
+
+                <div class="options-section">
+                    <div class="options-title">Display</div>
+                    <div class="options-row">
+                        <label>Scale</label>
+                        <input type="range" id="scale-slider" min="0.3" max="1.5" step="0.05">
+                    </div>
+                    <div class="options-row">
+                        <label>Opacity</label>
+                        <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05">
+                    </div>
+                    <div class="options-row">
+                        <label>Accent Color</label>
+                        <input type="color" id="color-picker" value="#ffffff">
+                    </div>
+                    <div class="options-row">
+                        <label>Key Color</label>
+                        <input type="color" id="key-bg-picker" value="#0f0f0f">
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <div class="options-title">Overlay</div>
+                    <button id="unlock-btn" class="options-btn">Unlock Position</button>
+                    <button id="clickthrough-btn" class="options-btn">Enable Clickthrough</button>
+                    <button id="reset-position-btn" class="options-btn">Reset Position</button>
+                    <button id="monitor-btn" class="options-btn" style="display:none">Monitor: 1 / 1</button>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div id="key-popup">
+            <div class="popup-title-row">
+                <span id="key-popup-title">Edit Key</span>
+                <button id="key-popup-close">×</button>
+            </div>
+            <div class="popup-row">
+                <label>Label</label>
+                <input type="text" id="popup-label-input" placeholder="Label">
+            </div>
+            <div class="popup-row">
+                <label>Bind</label>
+                <input type="text" id="popup-keybind-input" placeholder="press a key">
+            </div>
+        </div>
+
+        <div id="overlay-content">
+
+            <div id="joystick-container">
+
+                <div id="joystick-ring"></div>
+
+                <div id="joystick-stick"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
