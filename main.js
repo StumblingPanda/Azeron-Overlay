@@ -51,9 +51,10 @@ app.whenReady().then(() => {
     globalShortcut.register('F9', () => win?.webContents.send('global-key', 'F9'));
 
     if (app.isPackaged) {
-        autoUpdater.on('update-available',  () => win?.webContents.send('update-status', 'available'));
-        autoUpdater.on('update-downloaded', () => win?.webContents.send('update-status', 'ready'));
-        autoUpdater.on('error', (err)       => console.error('AutoUpdater error:', err));
+        autoUpdater.on('update-available',   () => win?.webContents.send('update-status', 'available'));
+        autoUpdater.on('update-downloaded',  () => win?.webContents.send('update-status', 'ready'));
+        autoUpdater.on('download-progress',  (p) => win?.webContents.send('update-status', `downloading:${Math.round(p.percent)}`));
+        autoUpdater.on('error', (err) => { console.error('AutoUpdater error:', err); win?.webContents.send('update-status', 'error'); });
         // Check for updates 5 seconds after launch so the window is ready
         setTimeout(() => autoUpdater.checkForUpdates(), 5000);
     }
@@ -81,6 +82,7 @@ ipcMain.handle("move-to-display", (_event, displayId) => {
 });
 
 ipcMain.on("install-update", () => { if (app.isPackaged) autoUpdater.quitAndInstall(); });
+ipcMain.on("retry-update",   () => { if (app.isPackaged) autoUpdater.checkForUpdates(); });
 
 function killPython() {
     if (!pythonProcess) return;
