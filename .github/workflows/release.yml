@@ -29,7 +29,19 @@ jobs:
       - name: Install Node dependencies
         run: npm install
 
-      - name: Build and publish
-        run: npm run release
+      - name: Build listener
+        run: npm run build:listener
+
+      - name: Build app
+        run: npx electron-builder --win
+
+      - name: Publish release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version  = "${{ github.ref_name }}".TrimStart('v')
+          $exe      = "dist\AzeronOverlay Setup $version.exe"
+          $blockmap = "dist\AzeronOverlay Setup $version.exe.blockmap"
+          $yml      = "dist\latest.yml"
+          gh release create "${{ github.ref_name }}" "$exe" "$blockmap" "$yml" --title "${{ github.ref_name }}" --latest
