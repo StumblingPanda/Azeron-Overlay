@@ -24,7 +24,14 @@ const monitorBtn          = document.getElementById("monitor-btn");
 const updateSection       = document.getElementById("update-section");
 const updateStatusText    = document.getElementById("update-status-text");
 const installUpdateBtn    = document.getElementById("install-update-btn");
+const retryUpdateBtn      = document.getElementById("retry-update-btn");
 const updateBadge         = document.getElementById("update-badge");
+const importProfileBtn    = document.getElementById("import-profile-btn");
+const importFileInput     = document.getElementById("import-file-input");
+const profileSelectRow    = document.getElementById("profile-select-row");
+const profileSelect       = document.getElementById("profile-select");
+const profileApplyBtn     = document.getElementById("profile-apply-btn");
+const importStatus        = document.getElementById("import-status");
 const keyPopup            = document.getElementById("key-popup");
 const keyPopupTitle     = document.getElementById("key-popup-title");
 const keyPopupClose     = document.getElementById("key-popup-close");
@@ -295,14 +302,164 @@ ipcRenderer.on("update-status", (_event, status) => {
     updateBadge.style.display = "";
     updateSection.style.display = "";
     if (status === "available") {
-        updateStatusText.textContent = "Downloading update...";
+        updateStatusText.textContent = "Downloading update... 0%";
+        retryUpdateBtn.style.display = "none";
+    } else if (status.startsWith("downloading:")) {
+        const pct = status.split(":")[1];
+        updateStatusText.textContent = `Downloading update... ${pct}%`;
+        retryUpdateBtn.style.display = "none";
     } else if (status === "ready") {
         updateStatusText.textContent = "Update ready to install.";
         installUpdateBtn.style.display = "";
+        retryUpdateBtn.style.display = "none";
+    } else if (status === "error") {
+        updateStatusText.textContent = "Update failed.";
+        retryUpdateBtn.style.display = "";
     }
 });
 
 installUpdateBtn.addEventListener("click", () => ipcRenderer.send("install-update"));
+retryUpdateBtn.addEventListener("click", () => ipcRenderer.send("retry-update"));
+
+
+
+/* -----------------------------
+   PROFILE IMPORT
+----------------------------- */
+
+const PIN_TO_KEY_ID = {
+     1: "mage-food-mana-drink",   2: "hammer-of-wrath",     3: "holy-shock",
+     4: "crusaders-strike",       5: "map-dungeon-finder",  6: "light-of-dawn",
+     7: "combat-ress",            8: "blessing-of-seasons", 9: "flash-of-light",
+    10: "judgement",             11: "row1-btn2",           13: "lay-on-hands",
+    14: "kick",                  15: "holy-light",          16: "consecrate",
+    17: "row1-btn3",             19: "mount-journal",       20: "appearances-log",
+    22: "jump",                  23: "racial-ability",      24: "word-of-glory",
+    25: "focus-target-macro",    26: "row1-btn4",           27: "extra-actionbutton",
+    32: "movement-ability",      33: "utility-ring",        34: "bags-character",
+    35: "spellbook-talents",     36: "dungeon-portals",     37: "social-esc",
+};
+
+const VK_TO_KEY = {
+     8: "backspace",  9: "tab",    13: "enter",  27: "esc",   32: "space",
+    37: "left",      38: "up",    39: "right",  40: "down",  45: "insert", 46: "delete",
+    48: "0",  49: "1",  50: "2",  51: "3",  52: "4",  53: "5",  54: "6",  55: "7",  56: "8",  57: "9",
+    65: "a",  66: "b",  67: "c",  68: "d",  69: "e",  70: "f",  71: "g",  72: "h",  73: "i",
+    74: "j",  75: "k",  76: "l",  77: "m",  78: "n",  79: "o",  80: "p",  81: "q",  82: "r",
+    83: "s",  84: "t",  85: "u",  86: "v",  87: "w",  88: "x",  89: "y",  90: "z",
+    112: "f1",  113: "f2",  114: "f3",  115: "f4",  116: "f5",  117: "f6",
+    118: "f7",  119: "f8",  120: "f9",  121: "f10", 122: "f11", 123: "f12",
+    186: ";", 187: "=", 188: ",", 189: "-", 190: ".", 191: "/", 192: "`",
+    219: "[", 220: "\\", 221: "]", 222: "'",
+};
+
+function buildKeybindString(vk, metaValues) {
+    const key = VK_TO_KEY[parseInt(vk)];
+    if (!key) return "";
+    const mods = new Set();
+    for (const mv of metaValues) {
+        const m = parseInt(mv);
+        if      (m === 16 || m === 160 || m === 161) mods.add("shift");
+        else if (m === 17 || m === 162 || m === 163) mods.add("ctrl");
+        else if (m === 18 || m === 164 || m === 165) mods.add("alt");
+    }
+    const parts = [];
+    if (mods.has("ctrl"))  parts.push("ctrl");
+    if (mods.has("shift")) parts.push("shift");
+    if (mods.has("alt"))   parts.push("alt");
+    parts.push(key);
+    return parts.join("+");
+}
+
+function applyAzeronProfile(profile) {
+    let count = 0;
+    for (const input of profile.inputs) {
+        const keyId  = PIN_TO_KEY_ID[input.pinOne];
+        if (!keyId) continue;
+        const keyObj = keys.find(k => k.id === keyId);
+        if (!keyObj) continue;
+
+        const label  = (input.label || "").trim();
+        const isKbd  = input.types?.[0] === "1" && input.keyValues?.[0] !== "0";
+        if (!label && !isKbd) continue;
+
+        if (label) {
+            keyObj.label = label;
+            const el = document.getElementById(keyId);
+            if (el) el.innerText = label;
+        }
+
+        if (isKbd) {
+            const keybind = buildKeybindString(input.keyValues[0], input.metaValues || []);
+            if (keybind) {
+                delete keyMap[keyObj.keybind];
+                keyObj.keybind = keybind;
+                keyMap[keybind] = keyId;
+            }
+        }
+        count++;
+    }
+    saveKeybinds();
+    return count;
+}
+
+let importedProfiles  = (() => {
+    try { return JSON.parse(localStorage.getItem("importedProfiles") || "[]"); } catch { return []; }
+})();
+let importStatusTimer = null;
+
+function showImportStatus(msg) {
+    importStatus.textContent = msg;
+    importStatus.style.display = "";
+    clearTimeout(importStatusTimer);
+    importStatusTimer = setTimeout(() => { importStatus.style.display = "none"; }, 4000);
+}
+
+function renderProfileSelect() {
+    if (!importedProfiles.length) { profileSelectRow.style.display = "none"; return; }
+    profileSelect.innerHTML = "";
+    importedProfiles.forEach((p, i) => {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = p.name || `Profile ${i + 1}`;
+        profileSelect.appendChild(opt);
+    });
+    profileSelectRow.style.display = "flex";
+}
+
+renderProfileSelect();
+
+importProfileBtn.addEventListener("click", () => importFileInput.click());
+
+importFileInput.addEventListener("change", () => {
+    const file = importFileInput.files[0];
+    if (!file) return;
+    importFileInput.value = "";
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const json = JSON.parse(e.target.result);
+            importedProfiles = json.profiles || [];
+            if (!importedProfiles.length) { showImportStatus("No profiles found in file."); return; }
+            localStorage.setItem("importedProfiles", JSON.stringify(importedProfiles));
+            renderProfileSelect();
+            if (importedProfiles.length === 1) {
+                const n = applyAzeronProfile(importedProfiles[0]);
+                showImportStatus(`Imported "${importedProfiles[0].name}": ${n} keys updated.`);
+            }
+        } catch {
+            showImportStatus("Failed to parse profile file.");
+        }
+    };
+    reader.readAsText(file);
+});
+
+profileApplyBtn.addEventListener("click", () => {
+    const profile = importedProfiles[parseInt(profileSelect.value)];
+    if (!profile) return;
+    const n = applyAzeronProfile(profile);
+    showImportStatus(`Imported "${profile.name}": ${n} keys updated.`);
+});
 
 
 
@@ -352,6 +509,12 @@ function normalizeKey(jsKey) {
     return aliases[jsKey] || jsKey.toLowerCase();
 }
 
+function physicalKey(code) {
+    if (code.startsWith('Digit')) return code.slice(5);
+    if (code.startsWith('Key'))   return code.slice(3).toLowerCase();
+    return null;
+}
+
 function saveKeybinds() {
     const data = {};
     keys.forEach(k => { data[k.id] = { label: k.label, keybind: k.keybind }; });
@@ -374,7 +537,7 @@ function commitLabel() {
 function commitKeybind() {
     if (!currentEditingKey) return;
     const newBind = popupKeybindInput.value.trim();
-    if (!newBind || newBind === currentEditingKey.keybind) return;
+    if (!newBind || newBind.endsWith("+") || newBind === currentEditingKey.keybind) return;
     delete keyMap[currentEditingKey.keybind];
     currentEditingKey.keybind = newBind;
     keyMap[newBind] = currentEditingKey.id;
@@ -424,13 +587,30 @@ popupKeybindInput.addEventListener("keydown", (e) => {
     e.preventDefault();
     const key = normalizeKey(e.key);
     if (key === "escape") { closeKeyPopup(); return; }
-    if (["control", "shift", "alt"].includes(key)) return;
     const parts = [];
     if (e.ctrlKey)  parts.push("ctrl");
     if (e.shiftKey) parts.push("shift");
     if (e.altKey)   parts.push("alt");
-    parts.push(key);
+    if (["control", "shift", "alt"].includes(key)) {
+        // Show pending modifier state and wait for the actual key
+        popupKeybindInput.value = parts.join("+") + "+";
+        return;
+    }
+    const finalKey = parts.length > 0 ? (physicalKey(e.code) || key) : key;
+    parts.push(finalKey);
     popupKeybindInput.value = parts.join("+");
+});
+
+popupKeybindInput.addEventListener("keyup", (e) => {
+    if (!popupKeybindInput.value.endsWith("+")) return;
+    const key = normalizeKey(e.key);
+    if (!["control", "shift", "alt"].includes(key)) return;
+    // Update or clear the pending display as modifiers are released
+    const parts = [];
+    if (e.ctrlKey)  parts.push("ctrl");
+    if (e.shiftKey) parts.push("shift");
+    if (e.altKey)   parts.push("alt");
+    popupKeybindInput.value = parts.length > 0 ? parts.join("+") + "+" : "";
 });
 
 popupKeybindInput.addEventListener("blur", () => {

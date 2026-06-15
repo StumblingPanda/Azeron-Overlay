@@ -59,10 +59,22 @@
                     <button id="monitor-btn" class="options-btn" style="display:none">Monitor: 1 / 1</button>
                 </div>
 
+                <div class="options-section">
+                    <div class="options-title">Profile</div>
+                    <button id="import-profile-btn" class="options-btn">Import Azeron Profile…</button>
+                    <input type="file" id="import-file-input" accept=".json" style="display:none">
+                    <div id="profile-select-row" class="options-row" style="display:none">
+                        <select id="profile-select"></select>
+                        <button id="profile-apply-btn" class="options-btn" style="width:auto;flex-shrink:0">Apply</button>
+                    </div>
+                    <div id="import-status" style="display:none;font-size:11px;color:#aaa"></div>
+                </div>
+
                 <div id="update-section" class="options-section" style="display:none">
                     <div class="options-title">Update</div>
                     <div id="update-status-text" class="update-status">Downloading update...</div>
                     <button id="install-update-btn" class="options-btn" style="display:none">Install &amp; Restart</button>
+                    <button id="retry-update-btn" class="options-btn" style="display:none">Retry Download</button>
                 </div>
 
             </div>

@@ -1,6 +1,6 @@
 {
   "name": "azeron-overlay",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Azeron Cyborg II keypad overlay for gaming",
   "author": "stumblingpanda",
   "main": "main.js",
@@ -8,7 +8,8 @@
   "scripts": {
     "start": "electron .",
     "build:listener": "pyinstaller --onefile --noconsole --name listener --distpath resources --workpath build\\pyinstaller --specpath build\\pyinstaller listener.py",
-    "build": "npm run build:listener && electron-builder"
+    "build": "npm run build:listener && electron-builder",
+    "release": "npm run build:listener && electron-builder --publish always"
   },
   "build": {
     "appId": "com.stumblingpanda.azeronoverlay",
@@ -27,10 +28,15 @@
     "win": {
       "target": "nsis"
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
     "publish": {
       "provider": "github",
       "owner": "StumblingPanda",
-      "repo": "Azeron-Cyborg-II-overlay"
+      "repo": "Azeron-Cyborg-II-overlay",
+      "releaseType": "release"
     }
   },
   "dependencies": {

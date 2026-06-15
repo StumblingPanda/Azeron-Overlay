@@ -193,6 +193,22 @@ body {
     padding: 0;
 }
 
+.options-row select {
+    flex: 1;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: white;
+    padding: 5px 7px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.options-row select option {
+    background: #1a1a1a;
+    color: white;
+}
+
 .options-btn {
     width: 100%;
     padding: 7px 10px;
