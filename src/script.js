@@ -117,6 +117,16 @@ function connectWebSocket() {
 
 optionsButton.addEventListener("click", () => {
     const opening = optionsPanel.style.display !== "flex";
+    if (opening) {
+        const spaceAbove = optionsButton.getBoundingClientRect().top;
+        if (spaceAbove < 500) {
+            optionsPanel.style.bottom = "";
+            optionsPanel.style.top    = "46px";
+        } else {
+            optionsPanel.style.top    = "";
+            optionsPanel.style.bottom = "46px";
+        }
+    }
     optionsPanel.style.display = opening ? "flex" : "none";
     overlayContent.classList.toggle("edit-mode", opening);
     if (!opening) closeKeyPopup();
