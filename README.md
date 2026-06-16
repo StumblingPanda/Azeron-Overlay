@@ -60,6 +60,10 @@ Then bring it into the overlay:
 6. Select the file you just exported
 7. Pick your profile from the dropdown and hit **Apply** — key labels update instantly
 
+## Support & Community
+
+Have a question, found a bug, or want to suggest a feature?
+Head over to the [Discussions](../../discussions) tab on GitHub!
 
 ## License
 GPL v3
