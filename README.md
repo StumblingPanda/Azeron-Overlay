@@ -63,3 +63,12 @@ Then bring it into the overlay:
 
 ## License
 GPL v3
+
+## Support
+
+If you find this useful, consider supporting the project!
+
+- [GitHub Sponsors](https://github.com/sponsors/stumblingpanda)
+- [Ko-fi](https://ko-fi.com/stumblingpanda)
+
+All support is appreciated and helps keep the project maintained.
