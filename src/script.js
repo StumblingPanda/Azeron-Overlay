@@ -39,7 +39,8 @@ const popupLabelInput   = document.getElementById("popup-label-input");
 const popupKeybindInput = document.getElementById("popup-keybind-input");
 
 // Runtime state
-const movementState = { w: false, a: false, s: false, d: false };
+let joystickKeys  = JSON.parse(localStorage.getItem("joystickKeys") || "null") || { up: "w", down: "s", left: "a", right: "d" };
+let movementState = Object.fromEntries(Object.values(joystickKeys).map(k => [k, false]));
 let isClickthrough    = false;
 let isUnlocked        = false;
 let isDragging        = false;
@@ -67,8 +68,8 @@ const keyMap = {};
 ----------------------------- */
 
 function updateJoystick() {
-    const x = (movementState.d ? JOYSTICK_DISTANCE : 0) - (movementState.a ? JOYSTICK_DISTANCE : 0);
-    const y = (movementState.s ? JOYSTICK_DISTANCE : 0) - (movementState.w ? JOYSTICK_DISTANCE : 0);
+    const x = (movementState[joystickKeys.right] ? JOYSTICK_DISTANCE : 0) - (movementState[joystickKeys.left] ? JOYSTICK_DISTANCE : 0);
+    const y = (movementState[joystickKeys.down]  ? JOYSTICK_DISTANCE : 0) - (movementState[joystickKeys.up]   ? JOYSTICK_DISTANCE : 0);
     stick.style.transform = `translate(${x}px, ${y}px)`;
 }
 
@@ -385,6 +386,23 @@ function buildKeybindString(vk, metaValues) {
 }
 
 function applyAzeronProfile(profile) {
+    const joystickInput = profile.inputs.find(
+        inp => (inp.types?.[0] === "4" || inp.types?.[0] === "21") &&
+               inp.analogSettings?.analogKeys?.left
+    );
+    if (joystickInput) {
+        const ak   = joystickInput.analogSettings.analogKeys.left;
+        const up   = VK_TO_KEY[parseInt(ak.up?.[0])];
+        const down = VK_TO_KEY[parseInt(ak.down?.[0])];
+        const left = VK_TO_KEY[parseInt(ak.left?.[0])];
+        const right= VK_TO_KEY[parseInt(ak.right?.[0])];
+        if (up || down || left || right) {
+            joystickKeys  = { up: up || joystickKeys.up, down: down || joystickKeys.down, left: left || joystickKeys.left, right: right || joystickKeys.right };
+            movementState = Object.fromEntries(Object.values(joystickKeys).map(k => [k, false]));
+            localStorage.setItem("joystickKeys", JSON.stringify(joystickKeys));
+        }
+    }
+
     let count = 0;
     for (const input of profile.inputs) {
         const keyId  = PIN_TO_KEY_ID[input.pinOne];
