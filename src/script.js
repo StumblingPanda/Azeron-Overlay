@@ -406,6 +406,11 @@ function applyAzeronProfile(profile) {
                 delete keyMap[keyObj.keybind];
                 keyObj.keybind = keybind;
                 keyMap[keybind] = keyId;
+                if (!label) {
+                    keyObj.label = keybind;
+                    const el = document.getElementById(keyId);
+                    if (el) el.innerText = keybind;
+                }
             }
         }
         count++;
