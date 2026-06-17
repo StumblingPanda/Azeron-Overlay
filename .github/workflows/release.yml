@@ -24,7 +24,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install keyboard websockets pyinstaller
+        run: pip install websockets pyinstaller
 
       - name: Install Node dependencies
         run: npm install
