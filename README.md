@@ -5,6 +5,9 @@ Live key-press highlights, editable button labels, and on-the-fly profile
 switching — no Azeron software needed at runtime. Perfect for streamers or
 as a quick visual reference for your binds.
 
+Currently only tested and confirmed that importing works from Azeron software 1.5.6 so be aware of Bugs if 2.0 dont work.
+Plans to fully implement 2.0 if its not working, and adding the other pieces of hardware (Cyborg II lefty, Cyro and the Keyzen).
+
 ## Features
 
 - Live key-press highlights
