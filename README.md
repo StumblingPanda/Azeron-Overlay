@@ -78,15 +78,18 @@ Then bring it into the overlay:
 
 **Duplicate keybinds:** The overlay tracks button activity by key name, not by which physical button was pressed. If two buttons on your keypad are assigned to the same key, pressing either one will highlight whichever overlay button has that keybind. This is by design — it allows the overlay to work across all Azeron hardware models without needing device-specific hardware identifiers. Avoid assigning the same key to more than one button if accurate per-button highlighting matters to you.
 
-## Support & Community
+## Acknowledgements
 
-Have a question, found a bug, or want to suggest a feature?
-Head over to the [Discussions](../../discussions) tab on GitHub!
+Big thanks to **@COALEYED** on the Azeron Discord for providing profile exports,
+screenshots, and hardware info that made multi-device support possible.
 
 ## License
 GPL v3
 
-## Support
+## Support & Community
+
+Have a question, found a bug, or want to suggest a feature?
+Head over to the [Discussions](../../discussions) tab on GitHub!
 
 If you find this useful, consider supporting the project!
 
