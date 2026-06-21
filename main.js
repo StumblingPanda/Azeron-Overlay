@@ -85,6 +85,7 @@ ipcMain.handle("move-to-display", (_event, displayId) => {
 
 ipcMain.on("install-update", () => { if (app.isPackaged) autoUpdater.quitAndInstall(); });
 ipcMain.on("retry-update",   () => { if (app.isPackaged) autoUpdater.checkForUpdates(); });
+ipcMain.handle('get-version', () => app.getVersion());
 
 function prefsPath() {
     return path.join(app.getPath('userData'), 'prefs.json');

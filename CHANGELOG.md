@@ -4,6 +4,16 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.4.1] - 2026-06-21
+
+### Added
+- Anonymous calibration data is now submitted to Supabase after a successful calibration (when opt-in is enabled)
+
+### Fixed
+- NSIS installer custom page replaced with a standard MessageBox to avoid plugin compatibility issues with electron-builder's bundled NSIS
+
+---
+
 ## [1.4.0] - 2026-06-21
 
 ### Added

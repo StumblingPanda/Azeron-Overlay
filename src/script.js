@@ -639,12 +639,45 @@ function calibrationRecordKey(key) {
     calibrationComboTimer = setTimeout(flushCalibrationCombo, 100);
 }
 
+// ---- Supabase anonymous data submission ----
+// Replace these two values once your Supabase project is created (Settings → API).
+const SUPABASE_URL = "https://gndjejpohyvicmfyzkdo.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduZGplanBvaHl2aWNtZnl6a2RvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNTIyNjAsImV4cCI6MjA5NzYyODI2MH0.PP0ogOtpcMfZ-FO0sQXajs4J589KvDCJzqXALArLWuM";
+
+async function submitCalibrationData(map) {
+    if (!shareAnonymousData) return;
+    // Skip if the placeholders haven't been filled in yet
+    if (SUPABASE_URL.includes("YOUR_PROJECT_ID") || SUPABASE_KEY.includes("YOUR_ANON")) return;
+    try {
+        const version = await ipcRenderer.invoke("get-version");
+        await fetch(`${SUPABASE_URL}/rest/v1/calibrations`, {
+            method: "POST",
+            headers: {
+                "apikey": SUPABASE_KEY,
+                "Authorization": `Bearer ${SUPABASE_KEY}`,
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            body: JSON.stringify({
+                device_id:       activeDeviceId,
+                pid:             devicePid || null,
+                calibration_map: JSON.stringify(map),
+                app_version:     version,
+                submitted_at:    new Date().toISOString(),
+            }),
+        });
+    } catch (e) {
+        console.warn("Calibration data submission failed:", e);
+    }
+}
+
 function finishCalibration() {
     calibrationActive = false;
     calibrationWizard.classList.remove("active");
     document.querySelectorAll(".key.calibrating").forEach(k => k.classList.remove("calibrating"));
     saveCalibration(calibrationMap);
     applyCalibration(calibrationMap);
+    submitCalibrationData(calibrationMap);
     calibrationStatus.textContent = "Calibrated — highlights active";
     calibrationStatus.style.color = "#aaa";
     calibrationStatus.style.display = "block";
