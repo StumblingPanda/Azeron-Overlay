@@ -543,6 +543,8 @@ function startCalibration() {
     calibrationWizard.classList.add("active");
     overlayContent.classList.remove("edit-mode");
     positionCalibrationPanel();
+    // Ensure the wizard buttons are always clickable regardless of clickthrough state
+    if (isClickthrough) ipcRenderer.send("set-clickthrough", false);
     showCalibrationStep();
 }
 
@@ -688,6 +690,7 @@ function finishCalibration() {
     calibrationStatus.style.color = "#aaa";
     calibrationStatus.style.display = "block";
     calibrateBtn.textContent = "Recalibrate Buttons…";
+    if (isClickthrough) ipcRenderer.send("set-clickthrough", true);
 }
 
 function cancelCalibration() {
@@ -699,6 +702,7 @@ function cancelCalibration() {
     calibrationBreakView.style.display = "none";
     calibrationStepsView.style.display = "";
     document.querySelectorAll(".key.calibrating").forEach(k => k.classList.remove("calibrating"));
+    if (isClickthrough) ipcRenderer.send("set-clickthrough", true);
 }
 
 calibrateBtn.addEventListener("click", () => {

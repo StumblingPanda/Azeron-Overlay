@@ -4,6 +4,14 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.4.2] - 2026-06-21
+
+### Fixed
+- Calibration wizard buttons (Continue, Skip, Cancel) were unclickable when overlay was in clickthrough mode — clickthrough is now suspended for the duration of the wizard and restored on finish or cancel
+- Default community calibration maps wired up — new users automatically get highlights if a community map exists for their device
+
+---
+
 ## [1.4.1] - 2026-06-21
 
 ### Added
