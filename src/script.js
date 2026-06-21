@@ -483,6 +483,12 @@ function handleDeviceInfo(pid) {
         const saved = loadCalibration();
         if (saved) {
             calibrationStatus.textContent = "Calibrated — highlights active";
+            calibrationStatus.style.color = "#aaa";
+            calibrationStatus.style.display = "block";
+            calibrateBtn.textContent = "Recalibrate Buttons…";
+        } else if (DEFAULT_CALIBRATION_MAPS[activeDeviceId]) {
+            calibrationStatus.textContent = "Community calibration active — recalibrate to customise";
+            calibrationStatus.style.color = "#6ab0f5";
             calibrationStatus.style.display = "block";
             calibrateBtn.textContent = "Recalibrate Buttons…";
         } else {
@@ -712,9 +718,28 @@ calibrationCancelBtn.addEventListener("click", cancelCalibration);
 calibrationContinueBtn.addEventListener("click", resumeFromSectionBreak);
 calibrationCancelBreakBtn.addEventListener("click", cancelCalibration);
 
-// Apply any saved calibration on load
-const _savedCal = loadCalibration();
-if (_savedCal) applyCalibration(_savedCal);
+// Community-sourced default calibration maps, keyed by device_id.
+// Paste calibration_map JSON from Supabase submissions here as they come in.
+const DEFAULT_CALIBRATION_MAPS = {
+    // "cyborg2": { "map-dungeon-finder": "m", ... },
+};
+
+function applyDefaultCalibrationIfNeeded() {
+    const saved = loadCalibration();
+    if (saved) {
+        applyCalibration(saved);
+        return "saved";
+    }
+    const def = DEFAULT_CALIBRATION_MAPS[activeDeviceId];
+    if (def) {
+        applyCalibration(def);
+        return "default";
+    }
+    return null;
+}
+
+// Apply saved or community calibration on load
+applyDefaultCalibrationIfNeeded();
 
 
 
@@ -1341,6 +1366,9 @@ function switchDevice(deviceId) {
 
     // Sync dropdown
     if (deviceSelect) deviceSelect.value = deviceId;
+
+    // Apply saved or community calibration for the new device
+    applyDefaultCalibrationIfNeeded();
 }
 
 deviceSelect.addEventListener("change", () => {
