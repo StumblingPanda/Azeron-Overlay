@@ -1,6 +1,6 @@
 {
   "name": "azeron-overlay",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Azeron Cyborg II keypad overlay for gaming",
   "author": "stumblingpanda",
   "main": "main.js",

@@ -379,14 +379,48 @@ function updateJoystick() {
 
 let socket;
 
+const backendStatus = document.getElementById("backend-status");
+const calibrateHint = document.getElementById("calibrate-hint");
+
+let deviceDetectTimer = null;
+
+function setBackendStatus(connected) {
+    backendStatus.style.display = "block";
+    if (connected) {
+        backendStatus.textContent = "● Backend connected";
+        backendStatus.style.color = "#4caf50";
+    } else {
+        backendStatus.textContent = "● Backend not running — check antivirus";
+        backendStatus.style.color = "#f0a500";
+    }
+}
+
+function updateCalibrateHint() {
+    const hasAnyBind = Object.keys(keyMap).length > 0;
+    calibrateHint.style.display = hasAnyBind ? "none" : "block";
+}
+
 function connectWebSocket() {
     socket = new WebSocket("ws://localhost:8765");
 
-    socket.onopen  = () => console.log("WebSocket connected");
+    socket.onopen  = () => {
+        console.log("WebSocket connected");
+        setBackendStatus(true);
+        // If no device_info arrives within 3s, show a nudge
+        deviceDetectTimer = setTimeout(() => {
+            if (!devicePid) {
+                calibrationStatus.textContent = "No Azeron detected — check USB connection";
+                calibrationStatus.style.color = "#f0a500";
+                calibrationStatus.style.display = "block";
+            }
+        }, 3000);
+    };
     socket.onerror = () => {};
 
     socket.onclose = () => {
         console.log("WebSocket closed, retrying in 1s...");
+        clearTimeout(deviceDetectTimer);
+        setBackendStatus(false);
         Object.keys(movementState).forEach(k => movementState[k] = false);
         updateJoystick();
         document.querySelectorAll(".key.active").forEach(el => el.classList.remove("active"));
@@ -400,6 +434,7 @@ function connectWebSocket() {
         const msg = JSON.parse(event.data);
 
         if (msg.type === "device_info") {
+            clearTimeout(deviceDetectTimer);
             handleDeviceInfo(msg.pid);
             return;
         }
@@ -695,6 +730,7 @@ function finishCalibration() {
     calibrationStatus.style.color = "#aaa";
     calibrationStatus.style.display = "block";
     calibrateBtn.textContent = "Recalibrate Buttons…";
+    updateCalibrateHint();
     if (isClickthrough) ipcRenderer.send("set-clickthrough", true);
 }
 
@@ -1566,6 +1602,15 @@ document.addEventListener("click", (e) => {
     // Load active device (creates key DOM elements and positions joystick)
     switchDevice(activeDeviceId);
 
+    // First-run: no saved calibration and no keybinds — open options panel automatically
+    const hasKeybinds = !!localStorage.getItem("keybinds_" + activeDeviceId);
+    const hasCal      = !!localStorage.getItem("calibration_" + activeDeviceId);
+    if (!hasKeybinds && !hasCal) {
+        optionsPanel.style.display = "flex";
+        ipcRenderer.send("set-clickthrough", false);
+    }
+
+    updateCalibrateHint();
     connectWebSocket();
     applyAccentColor(accentColor);
     applyKeyBgColor(keyBgColor);

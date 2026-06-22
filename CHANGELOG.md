@@ -4,6 +4,19 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.4.4] - 2026-06-22
+
+### Added
+- First-run detection — options panel opens automatically with clickthrough disabled when no calibration or keybinds are saved
+- Backend connection status indicator in Device section — green when running, orange with antivirus hint when not
+- "No Azeron detected" nudge if device is not plugged in when the app starts
+- Faint "Calibrate to activate highlights" hint on the overlay when no keybinds are set
+
+### Fixed
+- Calibration wizard panel was unstyled due to missing CSS — styles added and z-index set above controls row so ⚙/✕ buttons no longer bleed through
+
+---
+
 ## [1.4.3] - 2026-06-21
 
 ### Added
