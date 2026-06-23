@@ -1,0 +1,8 @@
+node_modules/
+dist/
+__pycache__/
+*.spec
+build/pyinstaller/
+.claude/
+resources/listener.exe
+reference/

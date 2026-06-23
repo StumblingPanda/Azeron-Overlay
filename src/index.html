@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Azeron Overlay
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="styles.css"
+    >
+
+</head>
+
+<body>
+
+    <div id="overlay-visuals">
+
+        <div id="options-ui">
+
+            <div id="controls-row">
+                <button id="options-button">⚙<span id="update-badge" style="display:none">🔴</span></button>
+                <button id="close-button">✕</button>
+            </div>
+
+            <div id="options-panel">
+
+                <div class="options-section">
+                    <div class="options-title">Device</div>
+                    <div id="backend-status" style="font-size:11px;display:none"></div>
+                    <select id="device-select">
+                        <option value="cyborg2">LH Cyborg II</option>
+                        <option value="cyborg2-lefty">RH Cyborg II</option>
+                        <option value="keyzen">LH Keyzen</option>
+                        <option value="keyzen-rh">RH Keyzen</option>
+                        <option value="cyro">RH Cyro</option>
+                        <option value="cyro-lh">LH Cyro</option>
+                    </select>
+                    <div id="calibration-status" style="font-size:11px;color:#aaa;display:none"></div>
+                    <button id="calibrate-btn" class="options-btn warn">⚠ Calibrate</button>
+                    <div class="options-row" style="display:none">
+                        <label for="share-data-check" style="color:#888;cursor:pointer">Share anonymous data</label>
+                        <input type="checkbox" id="share-data-check" checked>
+                    </div>
+                </div>
+
+                <div class="options-section section-display">
+                    <div class="options-title">Display</div>
+                    <div class="options-row">
+                        <label class="slider-label">Scale</label>
+                        <input type="range" id="scale-slider" min="0.3" max="1.5" step="0.05">
+                    </div>
+                    <div class="options-row">
+                        <label class="slider-label">Opacity</label>
+                        <input type="range" id="opacity-slider" min="0.1" max="1" step="0.05">
+                    </div>
+                    <div class="options-row">
+                        <label>Accent</label>
+                        <input type="color" id="color-picker" value="#ffffff">
+                        <label>Key</label>
+                        <input type="color" id="key-bg-picker" value="#0f0f0f">
+                    </div>
+                </div>
+
+                <div class="options-section">
+                    <div class="options-title">Overlay</div>
+                    <div class="options-btn-grid">
+                        <button id="unlock-btn" class="options-btn">Lock position</button>
+                        <button id="clickthrough-btn" class="options-btn">Enable clickthrough</button>
+                        <button id="reset-position-btn" class="options-btn">Reset position</button>
+                        <button id="monitor-btn" class="options-btn" style="display:none">Monitor<br><span class="monitor-idx">1/1</span></button>
+                    </div>
+                </div>
+
+                <div class="options-section section-profile">
+                    <div class="options-title">Profile</div>
+                    <button id="import-profile-btn" class="options-btn">↑ Import profile</button>
+                    <input type="file" id="import-file-input" accept=".json" style="display:none">
+                    <div id="profile-select-row" class="options-row" style="display:none">
+                        <div id="profile-dropdown" class="profile-dropdown">
+                            <button id="profile-dropdown-trigger" class="options-btn">Choose profile ▾</button>
+                            <div id="profile-dropdown-list" class="profile-dropdown-list" style="display:none"></div>
+                        </div>
+                        <button id="profile-apply-btn" class="options-btn" style="width:auto;flex-shrink:0">Apply</button>
+                    </div>
+                    <div id="import-status" style="display:none;font-size:11px;color:#aaa"></div>
+                </div>
+
+                <div id="update-section" class="options-section" style="display:none">
+                    <div class="options-title">Update</div>
+                    <div id="update-status-text" class="update-status">Downloading update...</div>
+                    <button id="install-update-btn" class="options-btn" style="display:none">Install &amp; Restart</button>
+                    <button id="retry-update-btn" class="options-btn" style="display:none">Retry Download</button>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div id="key-popup">
+            <div class="popup-title-row">
+                <span id="key-popup-title">Edit Key</span>
+                <button id="key-popup-close">×</button>
+            </div>
+            <div class="popup-row">
+                <label>Label</label>
+                <textarea id="popup-label-input" rows="1" placeholder="Label"></textarea>
+            </div>
+            <div class="popup-row">
+                <label>Bind</label>
+                <input type="text" id="popup-keybind-input" placeholder="press a key">
+            </div>
+        </div>
+
+        <div id="calibrate-hint">Open ⚙ settings → Calibrate Buttons… to activate highlights</div>
+
+        <div id="overlay-content">
+
+            <div id="joystick-container">
+
+                <div id="joystick-ring"></div>
+
+                <div id="joystick-stick"></div>
+
+            </div>
+
+        </div>
+
+        <div id="calibration-wizard">
+            <div id="calibration-panel">
+                <div id="calibration-title">Button Calibration</div>
+
+                <div id="calibration-steps-view">
+                    <div id="calibration-section-label"></div>
+                    <div id="calibration-prompt"></div>
+                    <div id="calibration-progress"></div>
+                    <div id="calibration-actions">
+                        <button id="calibration-back-btn" class="options-btn" disabled>← Back</button>
+                        <button id="calibration-skip-btn" class="options-btn">Skip</button>
+                        <button id="calibration-cancel-btn" class="options-btn">Cancel</button>
+                    </div>
+                </div>
+
+                <div id="calibration-break-view" style="display:none">
+                    <div id="calibration-break-check">✓</div>
+                    <div id="calibration-break-msg"></div>
+                    <div id="calibration-break-next"></div>
+                    <div id="calibration-break-actions">
+                        <button id="calibration-break-back-btn" class="options-btn">← Back</button>
+                        <button id="calibration-continue-btn" class="options-btn">Continue →</button>
+                        <button id="calibration-cancel-break-btn" class="options-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
