@@ -4,7 +4,7 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
-## [1.4.5] - 2026-06-23
+## [1.4.6] - 2026-06-23
 
 ### Added
 - Mouse button support in listener — Azeron buttons bound to mouse clicks (mouse1–mouse5) are now detected via Raw Input mouse interface, making them calibratable and highlightable during gameplay
@@ -12,10 +12,6 @@ All notable changes to Azeron Overlay are documented here.
 - Calibration data quality metrics — `mapped_count` and `total_count` are now submitted alongside the calibration map so incomplete or low-quality community submissions can be filtered
 
 ### Changed
-- Options panel redesigned from a tall single-column layout to a compact horizontal 4-column layout (Device / Display / Overlay / Profile) — significantly reduces panel height and keeps all controls visible at once
-- Accent Color and Key Color pickers condensed onto a single row in the Display column
-- Overlay buttons (Lock Position, Clickthrough, Reset Position, Monitor) arranged in a 2×2 grid instead of stacked full-width
-- Device column now shows backend connection status, calibration status, and Recalibrate button together
 - Calibration wizard panel removed during active calibration — the overlay now shows only the highlighted key, eliminating any chance of accidental UI clicks being recorded as button presses. Clicking the settings button cancels calibration if needed
 - Profile import no longer auto-switches device — if the imported profile belongs to a different device than the one currently selected, an error message is shown instead of silently switching
 
@@ -24,6 +20,16 @@ All notable changes to Azeron Overlay are documented here.
 - NumLock state no longer affects calibration — the listener now uses raw scan codes and the E0 extended flag to correctly identify numpad keys regardless of NumLock being on or off
 - Accidental double-tap during calibration — a 400ms cooldown after each recorded button press prevents a quick second press from skipping to the next calibration step
 - Calibration status now updates correctly when switching devices — status reflects the selected device rather than whichever device the listener last reported
+
+---
+
+## [1.4.5] - 2026-06-22
+
+### Changed
+- Options panel redesigned from a tall single-column layout to a compact horizontal 4-column layout (Device / Display / Overlay / Profile) — significantly reduces panel height and keeps all controls visible at once
+- Accent Color and Key Color pickers condensed onto a single row in the Display column
+- Overlay buttons (Lock Position, Clickthrough, Reset Position, Monitor) arranged in a 2×2 grid instead of stacked full-width
+- Device column now shows backend connection status, calibration status, and Recalibrate button together
 
 ---
 
