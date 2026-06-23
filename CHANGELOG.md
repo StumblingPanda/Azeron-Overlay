@@ -4,6 +4,17 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.4.7] - 2026-06-23
+
+### Fixed
+- Calibration no longer closes the app when an Azeron button bound to Space is pressed — the Azeron enumerates as a HID keyboard so every button press also fires a DOM keyboard event in Electron; Space/Enter were triggering a click on the focused close button. Fixed by blurring the active element on calibration start and blocking Space/Enter DOM events during calibration
+- Modifier-only keybinds now highlight correctly — modifier keys (Ctrl, Shift, Alt) now emit `down`/`up` events immediately on press/release rather than a deferred synthetic pair, so they light up while held and work as expected when used as part of a chord
+
+### Added
+- Crash logging via `electron-log` — unhandled main-process exceptions and renderer errors now write to `%AppData%\AzeronOverlay\logs\main.log`
+
+---
+
 ## [1.4.6] - 2026-06-23
 
 ### Added

@@ -6,6 +6,14 @@ import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const { autoUpdater } = require('electron-updater');
+const log = require('electron-log/main');
+
+log.initialize();
+log.transports.file.level = 'info';
+log.info('App starting');
+
+process.on('uncaughtException',  (err)    => { log.error('Uncaught exception:',   err);    app.quit(); });
+process.on('unhandledRejection', (reason) => { log.error('Unhandled rejection:', reason); });
 
 let pythonProcess;
 
@@ -21,9 +29,9 @@ function startPythonBackend() {
             : ['python', ['listener.py']];
 
         pythonProcess = spawn(cmd, args);
-        pythonProcess.stdout.on('data', (data) => console.log(`Python: ${data}`));
-        pythonProcess.stderr.on('data', (data) => console.error(`Python Error: ${data}`));
-        pythonProcess.on('close', (code) => console.log(`Python process exited with code ${code}`));
+        pythonProcess.stdout.on('data', (data) => log.info(`Python: ${data.toString().trim()}`));
+        pythonProcess.stderr.on('data', (data) => log.error(`Python Error: ${data.toString().trim()}`));
+        pythonProcess.on('close', (code) => log.warn(`Python process exited with code ${code}`));
     });
 }
 

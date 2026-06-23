@@ -218,10 +218,6 @@ def run_raw_input_loop(kb_handles, mouse_handles):
     kernel32  = ctypes.windll.kernel32
     hinstance = kernel32.GetModuleHandleW(None)
 
-    # Track modifier state purely through Raw Input (not GetAsyncKeyState)
-    # to correctly detect standalone modifier presses (e.g. a button bound to just Ctrl).
-    mod_state = {"held": set(), "non_mod_pressed": False}
-
     def wnd_proc(hwnd, msg, wparam, lparam):
         if msg == WM_INPUT:
             sz = wintypes.UINT(0)
@@ -236,27 +232,14 @@ def run_raw_input_loop(kb_handles, mouse_handles):
                 is_up = bool(raw.keyboard.Flags & RI_KEY_BREAK)
 
                 if vk in MODIFIER_VKS:
-                    if not is_up:
-                        # First modifier of a fresh chord — reset the tracker
-                        if not mod_state["held"]:
-                            mod_state["non_mod_pressed"] = False
-                        mod_state["held"].add(vk)
-                    else:
-                        mod_state["held"].discard(vk)
-                        # If nothing else was pressed while this modifier was held, emit standalone
-                        if not mod_state["non_mod_pressed"]:
-                            name = MODIFIER_NAMES.get(vk)
-                            if name:
-                                print(name, flush=True)
-                                if async_loop and async_loop.is_running():
-                                    asyncio.run_coroutine_threadsafe(
-                                        send_key_event(name, "down"), async_loop
-                                    )
-                                    asyncio.run_coroutine_threadsafe(
-                                        send_key_event(name, "up"), async_loop
-                                    )
+                    name = MODIFIER_NAMES.get(vk)
+                    if name and async_loop and async_loop.is_running():
+                        action = "up" if is_up else "down"
+                        print(f"{name}:{action}", flush=True)
+                        asyncio.run_coroutine_threadsafe(
+                            send_key_event(name, action), async_loop
+                        )
                 else:
-                    mod_state["non_mod_pressed"] = True
                     key = vkey_to_name(vk, raw.keyboard.Flags, mcode)
                     if key:
                         if not is_up:

@@ -1,4 +1,12 @@
 const { ipcRenderer } = require('electron');
+const log = require('electron-log/renderer');
+
+window.onerror = (msg, src, line, col, err) => {
+    log.error('Renderer uncaught error:', msg, `${src}:${line}:${col}`, err);
+};
+window.onunhandledrejection = (e) => {
+    log.error('Renderer unhandled rejection:', e.reason);
+};
 
 // Device layout files
 const KEYS_CYBORG2       = require('./layouts/keys.cjs');
@@ -592,6 +600,7 @@ function startCalibration() {
     calibrationCooldownUntil = 0;
     optionsPanel.style.display = "none";
     overlayContent.classList.remove("edit-mode");
+    document.activeElement?.blur();
     if (isClickthrough) ipcRenderer.send("set-clickthrough", false);
     showCalibrationStep();
 }
@@ -979,6 +988,15 @@ function setClickthrough(value) {
 
 optionsUi.addEventListener("mouseenter", () => { if (isClickthrough) ipcRenderer.send("set-clickthrough", false); });
 optionsUi.addEventListener("mouseleave", () => { if (isClickthrough && !calibrationActive) ipcRenderer.send("set-clickthrough", true); });
+
+// Prevent Azeron buttons bound to Space/Enter from accidentally clicking focused UI elements during calibration.
+// The Azeron enumerates as a HID keyboard, so every button press generates both a Raw Input event
+// (captured by the listener) AND a regular DOM keyboard event that can trigger button clicks.
+document.addEventListener('keydown', (e) => {
+    if (calibrationActive && (e.code === 'Space' || e.code === 'Enter')) {
+        e.preventDefault();
+    }
+});
 
 clickthroughBtn.addEventListener("click", () => setClickthrough(!isClickthrough));
 
