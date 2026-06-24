@@ -37,6 +37,10 @@ RID_INPUT        = 0x10000003
 RIDEV_INPUTSINK  = 0x00000100
 RI_KEY_BREAK     = 0x0001
 RI_KEY_E0        = 0x0002
+WM_INPUT_DEVICE_CHANGE = 0x00FE
+GIDC_ARRIVAL     = 1
+GIDC_REMOVAL     = 2
+RIDEV_DEVNOTIFY  = 0x00002000
 # Numpad keys send navigation VK codes when NumLock is off, but lack the E0 flag.
 # Dedicated nav cluster keys always have E0. Use MakeCode + no-E0 to identify true numpad.
 MAKECODE_TO_NUMPAD = {
@@ -207,10 +211,29 @@ async def websocket_handler(websocket):
         connected_clients.discard(websocket)
 
 
+async def broadcast_device_info():
+    if connected_clients:
+        msg = json.dumps({"type": "device_info", "pids": device_info["pids"]})
+        await asyncio.gather(*[c.send(msg) for c in connected_clients])
+
+
 async def send_key_event(key, action):
     if connected_clients:
         msg = json.dumps({"key": key, "action": action})
         await asyncio.gather(*[c.send(msg) for c in connected_clients])
+
+
+def refresh_azeron_handles(kb_set, mouse_set):
+    """Re-enumerate all connected Azeron devices and update handle sets in-place."""
+    device_info["pids"].clear()
+    new_kb, new_mouse = find_azeron_handles()
+    kb_set.clear()
+    kb_set.update(new_kb)
+    mouse_set.clear()
+    mouse_set.update(new_mouse)
+    print(f"Azeron handles refreshed: {len(kb_set)} kb, {len(mouse_set)} mouse", flush=True)
+    if async_loop and async_loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_device_info(), async_loop)
 
 
 def run_raw_input_loop(kb_handles, mouse_handles):
@@ -272,6 +295,8 @@ def run_raw_input_loop(kb_handles, mouse_handles):
                             asyncio.run_coroutine_threadsafe(
                                 send_key_event(btn_name, "up"), async_loop
                             )
+        elif msg == WM_INPUT_DEVICE_CHANGE:
+            refresh_azeron_handles(kb_handles, mouse_handles)
         return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     wnd_proc_cb = WNDPROC(wnd_proc)
@@ -300,12 +325,12 @@ def run_raw_input_loop(kb_handles, mouse_handles):
     rids     = (RAWINPUTDEVICE * num_rid)()
     rids[0].usUsagePage = 0x01
     rids[0].usUsage     = 0x06  # Keyboard
-    rids[0].dwFlags     = RIDEV_INPUTSINK
+    rids[0].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
     rids[0].hwndTarget  = hwnd
     if mouse_handles:
         rids[1].usUsagePage = 0x01
         rids[1].usUsage     = 0x02  # Mouse
-        rids[1].dwFlags     = RIDEV_INPUTSINK
+        rids[1].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
         rids[1].hwndTarget  = hwnd
 
     if not user32.RegisterRawInputDevices(rids, num_rid, ctypes.sizeof(RAWINPUTDEVICE)):

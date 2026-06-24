@@ -4,6 +4,13 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.4.8] - 2026-06-24
+
+### Fixed
+- Device swap / hotplug now works — unplugging one Azeron and plugging in another (e.g. swapping RH for LH Cyborg II) previously left the overlay deaf to all input because the new device received a new OS handle that was never registered. The listener now handles `WM_INPUT_DEVICE_CHANGE` with `RIDEV_DEVNOTIFY`, refreshing its internal handle sets whenever a device connects or disconnects, and re-broadcasts the updated PID list to the renderer
+
+---
+
 ## [1.4.7] - 2026-06-23
 
 ### Fixed
