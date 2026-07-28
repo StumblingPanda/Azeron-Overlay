@@ -1,6 +1,6 @@
 {
   "name": "azeron-overlay",
-  "version": "1.4.8",
+  "version": "1.5.0",
   "description": "Azeron keypad overlay for gaming",
   "author": "stumblingpanda",
   "main": "main.js",

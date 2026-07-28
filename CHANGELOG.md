@@ -4,6 +4,18 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.5.0] - 2026-07-28
+
+### Added
+- Native joystick/gamepad HID mode support — the overlay's virtual joystick indicator previously only reacted to WASD (keyboard-emulation mode). It now also works when an Azeron's analog stick is set to "Analog Joystick" or "Xbox 360 Joystick" mode in Azeron's software instead: the listener registers Raw Input for joystick/gamepad HID usages and decodes axis values generically from each device's own report descriptor via the Windows HID Parser API, rather than assuming a fixed byte layout, so it isn't tied to one specific hardware revision or report format
+
+### Fixed
+- Modifier-only keybinds — pressing a modifier (Shift, Ctrl, Alt, or a chord of them) alone in the key editor and releasing now commits it as the full keybind (e.g. `shift`) instead of clearing the field blank
+- `DefWindowProcW` could silently raise an `OverflowError` on large 64-bit window-message values — a latent bug in the existing keyboard/mouse listener code that the new joystick support made visible far more often. Fixed by declaring explicit ctypes argument types instead of relying on ctypes to guess
+- Repeated `WM_INPUT_DEVICE_CHANGE` bursts (observed from Azeron's virtual joystick interface) could flood the listener with redundant device re-enumeration in rapid succession — now debounced
+
+---
+
 ## [1.4.8] - 2026-06-24
 
 ### Fixed

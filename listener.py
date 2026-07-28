@@ -3,6 +3,7 @@ import ctypes
 import ctypes.wintypes as wintypes
 import json
 import threading
+import time
 import websockets
 
 AZERON_VID       = "VID_16D0"
@@ -32,7 +33,9 @@ VK_NAMES = {
 WM_INPUT         = 0x00FF
 RIM_TYPEMOUSE    = 0
 RIM_TYPEKEYBOARD = 1
+RIM_TYPEHID      = 2
 RIDI_DEVICENAME  = 0x20000007
+RIDI_PREPARSEDDATA = 0x20000005
 RID_INPUT        = 0x10000003
 RIDEV_INPUTSINK  = 0x00000100
 RI_KEY_BREAK     = 0x0001
@@ -41,6 +44,10 @@ WM_INPUT_DEVICE_CHANGE = 0x00FE
 GIDC_ARRIVAL     = 1
 GIDC_REMOVAL     = 2
 RIDEV_DEVNOTIFY  = 0x00002000
+HIDP_INPUT       = 0  # HIDP_REPORT_TYPE: input reports
+HIDP_STATUS_SUCCESS = 0x00110000  # HidP_* success code — NOT 0, unlike most NTSTATUS calls
+AXIS_DEADZONE    = 0.06
+AXIS_CHANGE_EPS  = 0.02
 # Numpad keys send navigation VK codes when NumLock is off, but lack the E0 flag.
 # Dedicated nav cluster keys always have E0. Use MakeCode + no-E0 to identify true numpad.
 MAKECODE_TO_NUMPAD = {
@@ -112,6 +119,106 @@ class RAWINPUT(ctypes.Structure):
     _anonymous_ = ("data",)
     _fields_    = [("header", RAWINPUTHEADER), ("data", _RAWINPUT_DATA)]
 
+# HID variant of RAWINPUT: header, then dwSizeHid/dwCount, then dwCount reports of
+# dwSizeHid bytes each (variable-length, so read the raw bytes manually rather than
+# modeling them as a fixed struct field).
+class RAWINPUT_HID_HEADER(ctypes.Structure):
+    _fields_ = [
+        ("header",    RAWINPUTHEADER),
+        ("dwSizeHid", wintypes.DWORD),
+        ("dwCount",   wintypes.DWORD),
+    ]
+
+class HIDP_CAPS(ctypes.Structure):
+    _fields_ = [
+        ("Usage",                     ctypes.c_ushort),
+        ("UsagePage",                 ctypes.c_ushort),
+        ("InputReportByteLength",     ctypes.c_ushort),
+        ("OutputReportByteLength",    ctypes.c_ushort),
+        ("FeatureReportByteLength",   ctypes.c_ushort),
+        ("Reserved",                  ctypes.c_ushort * 17),
+        ("NumberLinkCollectionNodes", ctypes.c_ushort),
+        ("NumberInputButtonCaps",     ctypes.c_ushort),
+        ("NumberInputValueCaps",      ctypes.c_ushort),
+        ("NumberInputDataIndices",    ctypes.c_ushort),
+        ("NumberOutputButtonCaps",    ctypes.c_ushort),
+        ("NumberOutputValueCaps",     ctypes.c_ushort),
+        ("NumberOutputDataIndices",   ctypes.c_ushort),
+        ("NumberFeatureButtonCaps",   ctypes.c_ushort),
+        ("NumberFeatureValueCaps",    ctypes.c_ushort),
+        ("NumberFeatureDataIndices",  ctypes.c_ushort),
+    ]
+
+class _HIDP_VALUE_CAPS_RANGE(ctypes.Structure):
+    _fields_ = [
+        ("UsageMin", ctypes.c_ushort), ("UsageMax", ctypes.c_ushort),
+        ("StringMin", ctypes.c_ushort), ("StringMax", ctypes.c_ushort),
+        ("DesignatorMin", ctypes.c_ushort), ("DesignatorMax", ctypes.c_ushort),
+        ("DataIndexMin", ctypes.c_ushort), ("DataIndexMax", ctypes.c_ushort),
+    ]
+
+class _HIDP_VALUE_CAPS_NOTRANGE(ctypes.Structure):
+    _fields_ = [
+        ("Usage", ctypes.c_ushort), ("Reserved1", ctypes.c_ushort),
+        ("StringIndex", ctypes.c_ushort), ("Reserved2", ctypes.c_ushort),
+        ("DesignatorIndex", ctypes.c_ushort), ("Reserved3", ctypes.c_ushort),
+        ("DataIndex", ctypes.c_ushort), ("Reserved4", ctypes.c_ushort),
+    ]
+
+class _HIDP_VALUE_CAPS_UNION(ctypes.Union):
+    _fields_ = [("Range", _HIDP_VALUE_CAPS_RANGE), ("NotRange", _HIDP_VALUE_CAPS_NOTRANGE)]
+
+class HIDP_VALUE_CAPS(ctypes.Structure):
+    _anonymous_ = ("u",)
+    _fields_ = [
+        ("UsagePage",         ctypes.c_ushort),
+        ("ReportID",          ctypes.c_ubyte),
+        ("IsAlias",           ctypes.c_ubyte),
+        ("BitField",          ctypes.c_ushort),
+        ("LinkCollection",    ctypes.c_ushort),
+        ("LinkUsage",         ctypes.c_ushort),
+        ("LinkUsagePage",     ctypes.c_ushort),
+        ("IsRange",           ctypes.c_ubyte),
+        ("IsStringRange",     ctypes.c_ubyte),
+        ("IsDesignatorRange", ctypes.c_ubyte),
+        ("IsAbsolute",        ctypes.c_ubyte),
+        ("HasNull",           ctypes.c_ubyte),
+        ("Reserved",          ctypes.c_ubyte),
+        ("BitSize",           ctypes.c_ushort),
+        ("ReportCount",       ctypes.c_ushort),
+        ("Reserved2",         ctypes.c_ushort * 5),
+        ("UnitsExp",          ctypes.c_ulong),
+        ("Units",             ctypes.c_ulong),
+        ("LogicalMin",        ctypes.c_long),
+        ("LogicalMax",        ctypes.c_long),
+        ("PhysicalMin",       ctypes.c_long),
+        ("PhysicalMax",       ctypes.c_long),
+        ("u",                 _HIDP_VALUE_CAPS_UNION),
+    ]
+
+# hid.dll HID Parser API — used to read joystick axis reports generically from each
+# device's own report descriptor instead of assuming a fixed byte layout (Azeron
+# hardware/firmware revisions are known to vary — see the Keyzen pin-mapping history).
+try:
+    hid = ctypes.windll.hid
+    hid.HidP_GetCaps.restype      = ctypes.c_long
+    hid.HidP_GetCaps.argtypes     = [ctypes.c_void_p, ctypes.POINTER(HIDP_CAPS)]
+    hid.HidP_GetValueCaps.restype  = ctypes.c_long
+    hid.HidP_GetValueCaps.argtypes = [
+        ctypes.c_int, ctypes.POINTER(HIDP_VALUE_CAPS), ctypes.POINTER(ctypes.c_ushort), ctypes.c_void_p,
+    ]
+    hid.HidP_GetUsageValue.restype  = ctypes.c_long
+    hid.HidP_GetUsageValue.argtypes = [
+        ctypes.c_int, ctypes.c_ushort, ctypes.c_ushort, ctypes.c_ushort,
+        ctypes.POINTER(ctypes.c_ulong), ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_ubyte), ctypes.c_ulong,
+    ]
+except Exception as e:
+    hid = None
+    print(f"hid.dll unavailable, native joystick support disabled: {e}", flush=True)
+else:
+    print("hid.dll HID Parser API bindings loaded OK", flush=True)
+
 WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_long, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
 
 class WNDCLASSEXW(ctypes.Structure):
@@ -145,22 +252,111 @@ pending_combos    = {}
 async_loop        = None
 device_info       = {"pids": [], "devices": []}
 handle_to_dev_id  = {}  # hDevice → stable instance-ID string
+handle_to_hid_caps  = {}  # hDevice → {"preparsed": buf, "x": {...}|None, "y": {...}|None}
+last_sent_axis      = {}  # hDevice → (x, y) last broadcast, for deadzone/threshold filtering
+warned_joystick_handles = set()  # hDevice — suppress repeat parse-error spam per device
+
+
+def _probe_joystick_hid(hdevice):
+    """Inspect a HID raw input device's own report descriptor. Returns
+    {"preparsed": buf, "x": {...}|None, "y": {...}|None} if it's a Joystick/Game Pad
+    exposing Generic Desktop X and/or Y, else None. Deliberately self-describing (reads
+    the device's own descriptor via HidP_*) rather than assuming a fixed report layout,
+    since Azeron hardware/firmware revisions are known to vary."""
+    if hid is None:
+        return None
+    user32 = ctypes.windll.user32
+    try:
+        sz = wintypes.UINT(0)
+        user32.GetRawInputDeviceInfoW(hdevice, RIDI_PREPARSEDDATA, None, ctypes.byref(sz))
+        if not sz.value:
+            return None
+        preparsed = ctypes.create_string_buffer(sz.value)
+        if user32.GetRawInputDeviceInfoW(hdevice, RIDI_PREPARSEDDATA, preparsed, ctypes.byref(sz)) <= 0:
+            return None
+
+        caps = HIDP_CAPS()
+        if hid.HidP_GetCaps(preparsed, ctypes.byref(caps)) != HIDP_STATUS_SUCCESS:
+            return None
+        if not (caps.UsagePage == 0x01 and caps.Usage in (0x04, 0x05)):
+            return None  # not a Joystick/Game Pad usage collection — skip, don't assume
+        if caps.NumberInputValueCaps == 0:
+            return None
+
+        vcaps     = (HIDP_VALUE_CAPS * caps.NumberInputValueCaps)()
+        vcaps_len = ctypes.c_ushort(caps.NumberInputValueCaps)
+        if hid.HidP_GetValueCaps(HIDP_INPUT, vcaps, ctypes.byref(vcaps_len), preparsed) != HIDP_STATUS_SUCCESS:
+            return None
+
+        x_caps = y_caps = None
+        for vc in vcaps[:vcaps_len.value]:
+            if vc.IsRange or vc.UsagePage != 0x01:
+                continue
+            if vc.NotRange.Usage == 0x30:    # Generic Desktop: X
+                x_caps = {"logical_min": vc.LogicalMin, "logical_max": vc.LogicalMax, "bit_size": vc.BitSize}
+            elif vc.NotRange.Usage == 0x31:  # Generic Desktop: Y
+                y_caps = {"logical_min": vc.LogicalMin, "logical_max": vc.LogicalMax, "bit_size": vc.BitSize}
+        if not x_caps and not y_caps:
+            return None
+        return {"preparsed": preparsed, "x": x_caps, "y": y_caps}
+    except Exception as e:
+        print(f"Joystick HID probe failed: {e}", flush=True)
+        return None
+
+
+def _read_hid_axis(preparsed, caps, usage, report_buf, report_len):
+    if not caps:
+        return None
+    raw_val = ctypes.c_ulong(0)
+    status = hid.HidP_GetUsageValue(
+        HIDP_INPUT, 0x01, 0, usage, ctypes.byref(raw_val), preparsed, report_buf, report_len
+    )
+    if status != HIDP_STATUS_SUCCESS:
+        return None
+    lo, hi = caps["logical_min"], caps["logical_max"]
+    if hi < lo:
+        # Some descriptors declare an unsigned logical range (e.g. 0..65535) in a field
+        # narrower than 32 bits; the HID parser sign-extends it, producing a negative
+        # max (65535 → -1 for a 16-bit field). Recover the intended unsigned value from
+        # the field's own bit width rather than assuming a genuinely signed range.
+        hi = hi + (1 << caps.get("bit_size", 16))
+    if hi == lo:
+        return 0.0
+    value = raw_val.value
+    if lo < 0:
+        # HidP_GetUsageValue returns the raw bit pattern; if the descriptor declares this
+        # axis signed, reinterpret those bits as signed before remapping onto [-1, 1].
+        value = ctypes.c_long(value).value
+    norm = ((value - lo) / (hi - lo)) * 2.0 - 1.0
+    return max(-1.0, min(1.0, norm))
+
+
+def _maybe_send_axis(hdevice, x, y, dev_id):
+    if abs(x) < AXIS_DEADZONE: x = 0.0
+    if abs(y) < AXIS_DEADZONE: y = 0.0
+    prev_x, prev_y = last_sent_axis.get(hdevice, (0.0, 0.0))
+    if abs(x - prev_x) < AXIS_CHANGE_EPS and abs(y - prev_y) < AXIS_CHANGE_EPS:
+        return
+    last_sent_axis[hdevice] = (x, y)
+    if async_loop and async_loop.is_running():
+        asyncio.run_coroutine_threadsafe(send_axis_event(x, y, dev_id), async_loop)
 
 
 def find_azeron_handles():
-    """Return (kb_handles, mouse_handles) for all Azeron raw input devices."""
+    """Return (kb_handles, mouse_handles, joystick_handles) for all Azeron raw input devices."""
     import re
     user32  = ctypes.windll.user32
     num     = wintypes.UINT(0)
     user32.GetRawInputDeviceList(None, ctypes.byref(num), ctypes.sizeof(RAWINPUTDEVICELIST))
     if not num.value:
-        return set(), set()
+        return set(), set(), set()
     devices = (RAWINPUTDEVICELIST * num.value)()
     user32.GetRawInputDeviceList(devices, ctypes.byref(num), ctypes.sizeof(RAWINPUTDEVICELIST))
-    kb_handles    = set()
-    mouse_handles = set()
+    kb_handles       = set()
+    mouse_handles    = set()
+    joystick_handles = set()
     for dev in devices:
-        if dev.dwType not in (RIM_TYPEKEYBOARD, RIM_TYPEMOUSE):
+        if dev.dwType not in (RIM_TYPEKEYBOARD, RIM_TYPEMOUSE, RIM_TYPEHID):
             continue
         sz = wintypes.UINT(0)
         user32.GetRawInputDeviceInfoW(dev.hDevice, RIDI_DEVICENAME, None, ctypes.byref(sz))
@@ -185,9 +381,16 @@ def find_azeron_handles():
         print(f"Azeron PID: {pid}  dev_id: {dev_id}", flush=True)
         if dev.dwType == RIM_TYPEKEYBOARD:
             kb_handles.add(dev.hDevice)
-        else:
+        elif dev.dwType == RIM_TYPEMOUSE:
             mouse_handles.add(dev.hDevice)
-    return kb_handles, mouse_handles
+        else:
+            hid_caps = _probe_joystick_hid(dev.hDevice)
+            if hid_caps:
+                handle_to_hid_caps[dev.hDevice] = hid_caps
+                joystick_handles.add(dev.hDevice)
+                print(f"Azeron joystick HID axes: x={'yes' if hid_caps['x'] else 'no'} "
+                      f"y={'yes' if hid_caps['y'] else 'no'}", flush=True)
+    return kb_handles, mouse_handles, joystick_handles
 
 
 def vkey_to_name(vk, flags=0, mcode=0):
@@ -230,25 +433,53 @@ async def send_key_event(key, action, dev_id=""):
         await asyncio.gather(*[c.send(msg) for c in connected_clients])
 
 
-def refresh_azeron_handles(kb_set, mouse_set):
+async def send_axis_event(x, y, dev_id=""):
+    if connected_clients:
+        msg = json.dumps({"type": "joystick_axis", "x": round(x, 3), "y": round(y, 3), "device": dev_id})
+        await asyncio.gather(*[c.send(msg) for c in connected_clients])
+
+
+_last_refresh_time = 0.0
+REFRESH_DEBOUNCE_SEC = 0.3
+
+
+def refresh_azeron_handles(kb_set, mouse_set, joystick_set):
     """Re-enumerate all connected Azeron devices and update handle sets in-place."""
+    global _last_refresh_time
+    now = time.monotonic()
+    if now - _last_refresh_time < REFRESH_DEBOUNCE_SEC:
+        # WM_INPUT_DEVICE_CHANGE can fire in rapid repeated bursts for the same,
+        # unchanged device set (observed with the joystick/gamepad HID interface) —
+        # collapse those into a single re-enumeration instead of redoing it dozens
+        # of times per second.
+        return
+    _last_refresh_time = now
     device_info["pids"].clear()
     device_info["devices"].clear()
     handle_to_dev_id.clear()
-    new_kb, new_mouse = find_azeron_handles()
+    handle_to_hid_caps.clear()
+    new_kb, new_mouse, new_joystick = find_azeron_handles()
     kb_set.clear()
     kb_set.update(new_kb)
     mouse_set.clear()
     mouse_set.update(new_mouse)
-    print(f"Azeron handles refreshed: {len(kb_set)} kb, {len(mouse_set)} mouse", flush=True)
+    joystick_set.clear()
+    joystick_set.update(new_joystick)
+    print(f"Azeron handles refreshed: {len(kb_set)} kb, {len(mouse_set)} mouse, {len(joystick_set)} joystick", flush=True)
     if async_loop and async_loop.is_running():
         asyncio.run_coroutine_threadsafe(broadcast_device_info(), async_loop)
 
 
-def run_raw_input_loop(kb_handles, mouse_handles):
+def run_raw_input_loop(kb_handles, mouse_handles, joystick_handles):
     user32    = ctypes.windll.user32
     kernel32  = ctypes.windll.kernel32
     hinstance = kernel32.GetModuleHandleW(None)
+    # Without explicit argtypes, ctypes guesses a C int for wparam/lparam and raises
+    # "OverflowError: int too long to convert" whenever either holds a 64-bit pointer
+    # value (e.g. a WM_INPUT handle) too large to fit — set these explicitly so every
+    # message, not just the ones lucky enough to fit in 32 bits, gets passed through.
+    user32.DefWindowProcW.restype  = ctypes.c_long
+    user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 
     def wnd_proc(hwnd, msg, wparam, lparam):
         if msg == WM_INPUT:
@@ -306,8 +537,28 @@ def run_raw_input_loop(kb_handles, mouse_handles):
                             asyncio.run_coroutine_threadsafe(
                                 send_key_event(btn_name, "up", dev_id), async_loop
                             )
+
+            elif raw.header.hDevice in joystick_handles and raw.header.dwType == RIM_TYPEHID:
+                caps_entry = handle_to_hid_caps.get(raw.header.hDevice)
+                if caps_entry:
+                    try:
+                        hid_hdr    = ctypes.cast(buf, ctypes.POINTER(RAWINPUT_HID_HEADER)).contents
+                        report_len = hid_hdr.dwSizeHid
+                        report_off = ctypes.sizeof(RAWINPUT_HID_HEADER)
+                        report_buf = (ctypes.c_ubyte * report_len).from_buffer_copy(
+                            buf.raw[report_off:report_off + report_len]
+                        )
+                        dev_id = handle_to_dev_id.get(raw.header.hDevice, "")
+                        x = _read_hid_axis(caps_entry["preparsed"], caps_entry["x"], 0x30, report_buf, report_len)
+                        y = _read_hid_axis(caps_entry["preparsed"], caps_entry["y"], 0x31, report_buf, report_len)
+                        if x is not None or y is not None:
+                            _maybe_send_axis(raw.header.hDevice, x or 0.0, y or 0.0, dev_id)
+                    except Exception as e:
+                        if raw.header.hDevice not in warned_joystick_handles:
+                            warned_joystick_handles.add(raw.header.hDevice)
+                            print(f"Joystick HID parse error: {e}", flush=True)
         elif msg == WM_INPUT_DEVICE_CHANGE:
-            refresh_azeron_handles(kb_handles, mouse_handles)
+            refresh_azeron_handles(kb_handles, mouse_handles, joystick_handles)
         return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     wnd_proc_cb = WNDPROC(wnd_proc)
@@ -332,19 +583,21 @@ def run_raw_input_loop(kb_handles, mouse_handles):
         print(f"Failed to create message window (error {kernel32.GetLastError()})", flush=True)
         return
 
-    num_rid  = 2 if mouse_handles else 1
-    rids     = (RAWINPUTDEVICE * num_rid)()
-    rids[0].usUsagePage = 0x01
-    rids[0].usUsage     = 0x06  # Keyboard
-    rids[0].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
-    rids[0].hwndTarget  = hwnd
+    usages = [0x06]  # Keyboard, always
     if mouse_handles:
-        rids[1].usUsagePage = 0x01
-        rids[1].usUsage     = 0x02  # Mouse
-        rids[1].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
-        rids[1].hwndTarget  = hwnd
+        usages.append(0x02)  # Mouse
+    if joystick_handles:
+        usages += [0x04, 0x05]  # Joystick, Game Pad — only if an Azeron was found in that mode,
+                                 # so we don't also start capturing an unrelated real gamepad
 
-    if not user32.RegisterRawInputDevices(rids, num_rid, ctypes.sizeof(RAWINPUTDEVICE)):
+    rids = (RAWINPUTDEVICE * len(usages))()
+    for i, usage in enumerate(usages):
+        rids[i].usUsagePage = 0x01
+        rids[i].usUsage     = usage
+        rids[i].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
+        rids[i].hwndTarget  = hwnd
+
+    if not user32.RegisterRawInputDevices(rids, len(usages), ctypes.sizeof(RAWINPUTDEVICE)):
         print("Failed to register raw input devices", flush=True)
         return
 
@@ -359,14 +612,16 @@ async def main():
     global async_loop
     async_loop = asyncio.get_running_loop()
 
-    kb_handles, mouse_handles = find_azeron_handles()
+    kb_handles, mouse_handles, joystick_handles = find_azeron_handles()
     if not kb_handles:
         print("No Azeron device found — make sure it is connected and try again.", flush=True)
         return
     if mouse_handles:
         print(f"Azeron mouse interface found ({len(mouse_handles)} handle(s))", flush=True)
+    if joystick_handles:
+        print(f"Azeron joystick interface found ({len(joystick_handles)} handle(s))", flush=True)
 
-    threading.Thread(target=run_raw_input_loop, args=(kb_handles, mouse_handles), daemon=True).start()
+    threading.Thread(target=run_raw_input_loop, args=(kb_handles, mouse_handles, joystick_handles), daemon=True).start()
 
     print("WebSocket server starting...", flush=True)
     try:

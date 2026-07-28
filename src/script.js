@@ -386,6 +386,13 @@ function updateJoystick() {
     stick.style.transform = `translate(${x}px, ${y}px)`;
 }
 
+// Drives the stick from real analog joystick/gamepad HID axis data (Azeron's "joystick
+// mode"), independent of the digital WASD path above (Azeron's "keyboard mode"). A given
+// device only ever sends one or the other, so there's no conflict between the two.
+function updateJoystickAxis(x, y) {
+    stick.style.transform = `translate(${x * JOYSTICK_DISTANCE}px, ${y * JOYSTICK_DISTANCE}px)`;
+}
+
 
 
 /* -----------------------------
@@ -438,6 +445,7 @@ function connectWebSocket() {
         setBackendStatus(false);
         Object.keys(movementState).forEach(k => movementState[k] = false);
         updateJoystick();
+        updateJoystickAxis(0, 0);
         document.querySelectorAll(".key.active").forEach(el => el.classList.remove("active"));
         setTimeout(connectWebSocket, 1000);
     };
@@ -451,6 +459,16 @@ function connectWebSocket() {
         if (msg.type === "device_info") {
             clearTimeout(deviceDetectTimer);
             handleDeviceInfo(msg.pids || [], msg.devices || []);
+            return;
+        }
+
+        if (msg.type === "joystick_axis") {
+            if (connectedDeviceIds.length > 1 && msg.device) {
+                const boundDev = localStorage.getItem("boundDevice_" + activeDeviceId);
+                if (boundDev && connectedDeviceIds.includes(boundDev) && boundDev !== msg.device) return;
+            }
+            if (calibrationActive) return;
+            updateJoystickAxis(msg.x, msg.y);
             return;
         }
 
@@ -1632,7 +1650,13 @@ popupKeybindInput.addEventListener("keyup", (e) => {
     if (e.ctrlKey)  parts.push("ctrl");
     if (e.shiftKey) parts.push("shift");
     if (e.altKey)   parts.push("alt");
-    popupKeybindInput.value = parts.length > 0 ? parts.join("+") + "+" : "";
+    if (parts.length > 0) {
+        popupKeybindInput.value = parts.join("+") + "+";
+    } else {
+        // No modifiers left held and no other key was pressed — commit the modifier(s)
+        // alone as the full keybind (e.g. "shift") instead of clearing the field.
+        popupKeybindInput.value = popupKeybindInput.value.slice(0, -1);
+    }
 });
 
 popupKeybindInput.addEventListener("blur", () => {
