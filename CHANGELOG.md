@@ -4,6 +4,19 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.6.0] - 2026-07-29
+
+### Added
+- LH/RH Cyborg I device support — same button grid as Cyborg II, minus the extra button Cyborg II added next to the joystick; own calibration flow, known PID `113C`
+- Manual profiles — save and recall named, hand-built keybind sets per device without needing an Azeron profile export. Stored as JSON files under the app's userData folder, switchable via a new Import/Manual mode toggle in the Profile section. Meant as a stopgap for hardware the import feature doesn't support yet
+- Key display mode — a new "Show" setting in Display options lets overlay buttons display their Label, Keybind, or Both instead of only ever showing the label
+
+### Fixed
+- Options panel could open on top of the button grid instead of floating clear of it, when it opened automatically on a device with no saved keybinds/calibration yet — the smart positioning logic previously only ran on a manual gear-icon click, not the automatic first-run open
+- The "Open settings… to activate highlights" calibration hint had no CSS positioning at all and could render behind the top row of buttons on a fresh, uncalibrated device; it's now positioned clear of the grid, hides while the options panel is open, and never reappears once the panel has been opened once
+
+---
+
 ## [1.5.0] - 2026-07-28
 
 ### Added

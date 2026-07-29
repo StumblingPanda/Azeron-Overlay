@@ -82,6 +82,7 @@ body {
     box-sizing: border-box;
     overflow-wrap: break-word;
     word-break: break-word;
+    white-space: pre-line;
     user-select: none;
     cursor: default;
 }
@@ -113,6 +114,20 @@ body {
 .key.active {
     background: var(--accent);
     color: var(--accent-fg);
+}
+
+/* ---- CALIBRATE HINT ---- */
+
+#calibrate-hint {
+    position: absolute;
+    top: -26px;
+    left: 0;
+    font-size: 12px;
+    color: #ddd;
+    white-space: nowrap;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    font-family: Arial, sans-serif;
+    pointer-events: none;
 }
 
 /* ---- OPTIONS UI ---- */
@@ -584,4 +599,98 @@ body {
 .profile-item-remove:hover {
     color: #ff6b6b;
     background: rgba(255, 107, 107, 0.1);
+}
+
+/* ---- PROFILE MODE TOGGLE ---- */
+
+.profile-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.profile-mode-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.profile-mode-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: none;
+    font-weight: normal;
+    letter-spacing: normal;
+}
+
+.profile-view {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-track {
+    width: 30px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid #555;
+    border-radius: 999px;
+    display: inline-block;
+    position: relative;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.toggle-knob {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #f0a500;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.toggle-switch input:checked + .toggle-track {
+    background: rgba(106, 176, 245, 0.2);
+    border-color: #6ab0f5;
+}
+
+.toggle-switch input:checked + .toggle-track .toggle-knob {
+    transform: translateX(14px);
+    background: #6ab0f5;
+}
+
+.options-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid #444;
+    border-radius: 6px;
+    color: white;
+    padding: 5px 7px;
+    font-size: 11px;
+    font-family: Arial, sans-serif;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.options-row input[type="text"]:focus {
+    border-color: #888;
+    background: rgba(255, 255, 255, 0.12);
 }

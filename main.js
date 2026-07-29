@@ -111,6 +111,54 @@ ipcMain.on('set-pref', (_e, key, value) => {
     } catch (e) { console.error('Failed to write prefs:', e); }
 });
 
+function manualProfilesDir(deviceId) {
+    return path.join(app.getPath('userData'), 'manual-profiles', String(deviceId).replace(/[^a-z0-9_-]/gi, '_'));
+}
+
+function manualProfileFile(deviceId, name) {
+    const safeName = String(name).replace(/[^a-z0-9 _-]/gi, '').trim().slice(0, 60);
+    return safeName ? path.join(manualProfilesDir(deviceId), safeName + '.json') : null;
+}
+
+ipcMain.handle('list-manual-profiles', (_e, deviceId) => {
+    try {
+        const dir = manualProfilesDir(deviceId);
+        return fs.readdirSync(dir)
+            .filter(f => f.endsWith('.json'))
+            .map(f => {
+                try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); }
+                catch { return null; }
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.name.localeCompare(b.name));
+    } catch { return []; }
+});
+
+ipcMain.handle('save-manual-profile', (_e, deviceId, profile) => {
+    const file = manualProfileFile(deviceId, profile?.name);
+    if (!file) return { ok: false, error: 'Invalid profile name.' };
+    try {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify({ ...profile, savedAt: Date.now() }));
+        return { ok: true };
+    } catch (e) {
+        log.error('Failed to save manual profile:', e);
+        return { ok: false, error: 'Failed to write profile file.' };
+    }
+});
+
+ipcMain.handle('delete-manual-profile', (_e, deviceId, name) => {
+    const file = manualProfileFile(deviceId, name);
+    if (!file) return { ok: false, error: 'Invalid profile name.' };
+    try {
+        fs.rmSync(file, { force: true });
+        return { ok: true };
+    } catch (e) {
+        log.error('Failed to delete manual profile:', e);
+        return { ok: false, error: 'Failed to delete profile file.' };
+    }
+});
+
 function killPython() {
     if (!pythonProcess) return;
     spawn('taskkill', ['/F', '/T', '/PID', String(pythonProcess.pid)]);

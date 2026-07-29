@@ -40,6 +40,8 @@
                     <select id="device-select">
                         <option value="cyborg2">LH Cyborg II</option>
                         <option value="cyborg2-lefty">RH Cyborg II</option>
+                        <option value="cyborg1">LH Cyborg I</option>
+                        <option value="cyborg1-lefty">RH Cyborg I</option>
                         <option value="keyzen">LH Keyzen</option>
                         <option value="keyzen-rh">RH Keyzen</option>
                         <option value="cyro">RH Cyro</option>
@@ -69,6 +71,14 @@
                         <label>Key</label>
                         <input type="color" id="key-bg-picker" value="#0f0f0f">
                     </div>
+                    <div class="options-row">
+                        <label>Show</label>
+                        <select id="key-text-mode">
+                            <option value="label">Label</option>
+                            <option value="keybind">Keybind</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="options-section">
@@ -82,17 +92,44 @@
                 </div>
 
                 <div class="options-section section-profile">
-                    <div class="options-title">Profile</div>
-                    <button id="import-profile-btn" class="options-btn">↑ Import profile</button>
-                    <input type="file" id="import-file-input" accept=".json" style="display:none">
-                    <div id="profile-select-row" class="options-row" style="display:none">
-                        <div id="profile-dropdown" class="profile-dropdown">
-                            <button id="profile-dropdown-trigger" class="options-btn">Choose profile ▾</button>
-                            <div id="profile-dropdown-list" class="profile-dropdown-list" style="display:none"></div>
+                    <div class="options-title profile-title-row">
+                        <span>Profile</span>
+                        <div class="profile-mode-toggle-group">
+                            <span id="profile-mode-label" class="profile-mode-label">Import</span>
+                            <label class="toggle-switch" title="Switch between imported and manually-saved profiles">
+                                <input type="checkbox" id="profile-mode-toggle">
+                                <span class="toggle-track"><span class="toggle-knob"></span></span>
+                            </label>
                         </div>
-                        <button id="profile-apply-btn" class="options-btn" style="width:auto;flex-shrink:0">Apply</button>
                     </div>
-                    <div id="import-status" style="display:none;font-size:11px;color:#aaa"></div>
+
+                    <div id="profile-import-view" class="profile-view">
+                        <button id="import-profile-btn" class="options-btn">↑ Import profile</button>
+                        <input type="file" id="import-file-input" accept=".json" style="display:none">
+                        <div id="profile-select-row" class="options-row" style="display:none">
+                            <div id="profile-dropdown" class="profile-dropdown">
+                                <button id="profile-dropdown-trigger" class="options-btn">Choose profile ▾</button>
+                                <div id="profile-dropdown-list" class="profile-dropdown-list" style="display:none"></div>
+                            </div>
+                            <button id="profile-apply-btn" class="options-btn" style="width:auto;flex-shrink:0">Apply</button>
+                        </div>
+                        <div id="import-status" style="display:none;font-size:11px;color:#aaa"></div>
+                    </div>
+
+                    <div id="profile-manual-view" class="profile-view" style="display:none">
+                        <div class="options-row">
+                            <input type="text" id="manual-profile-name-input" placeholder="Profile name" maxlength="60">
+                            <button id="manual-profile-save-btn" class="options-btn" style="width:auto;flex-shrink:0">Save</button>
+                        </div>
+                        <div id="manual-profile-select-row" class="options-row" style="display:none">
+                            <div id="manual-profile-dropdown" class="profile-dropdown">
+                                <button id="manual-profile-dropdown-trigger" class="options-btn">Choose profile ▾</button>
+                                <div id="manual-profile-dropdown-list" class="profile-dropdown-list" style="display:none"></div>
+                            </div>
+                            <button id="manual-profile-apply-btn" class="options-btn" style="width:auto;flex-shrink:0">Apply</button>
+                        </div>
+                        <div id="manual-profile-status" style="display:none;font-size:11px;color:#aaa"></div>
+                    </div>
                 </div>
 
                 <div id="update-section" class="options-section" style="display:none">

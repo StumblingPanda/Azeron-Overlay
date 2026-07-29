@@ -11,6 +11,8 @@ window.onunhandledrejection = (e) => {
 // Device layout files
 const KEYS_CYBORG2       = require('./layouts/keys.cjs');
 const KEYS_CYBORG2_LEFTY = require('./layouts/keys_lefty.cjs');
+const KEYS_CYBORG1       = require('./layouts/keys_cyborg1.cjs');
+const KEYS_CYBORG1_LEFTY = require('./layouts/keys_cyborg1_lefty.cjs');
 const KEYS_KEYZEN        = require('./layouts/keys_keyzen.cjs');
 const KEYS_KEYZEN_RH     = require('./layouts/keys_keyzen_rh.cjs');
 const KEYS_CYRO          = require('./layouts/keys_cyro.cjs');
@@ -34,6 +36,7 @@ const scaleSlider       = document.getElementById("scale-slider");
 const opacitySlider     = document.getElementById("opacity-slider");
 const colorPicker       = document.getElementById("color-picker");
 const keyBgPicker       = document.getElementById("key-bg-picker");
+const keyTextModeSelect = document.getElementById("key-text-mode");
 const unlockBtn         = document.getElementById("unlock-btn");
 const clickthroughBtn   = document.getElementById("clickthrough-btn");
 const resetPositionBtn  = document.getElementById("reset-position-btn");
@@ -51,6 +54,17 @@ const profileDropdownTrigger = document.getElementById("profile-dropdown-trigger
 const profileDropdownList    = document.getElementById("profile-dropdown-list");
 const profileApplyBtn        = document.getElementById("profile-apply-btn");
 const importStatus           = document.getElementById("import-status");
+const profileModeToggle      = document.getElementById("profile-mode-toggle");
+const profileModeLabel       = document.getElementById("profile-mode-label");
+const profileImportView      = document.getElementById("profile-import-view");
+const profileManualView      = document.getElementById("profile-manual-view");
+const manualProfileNameInput       = document.getElementById("manual-profile-name-input");
+const manualProfileSaveBtn         = document.getElementById("manual-profile-save-btn");
+const manualProfileSelectRow       = document.getElementById("manual-profile-select-row");
+const manualProfileDropdownTrigger = document.getElementById("manual-profile-dropdown-trigger");
+const manualProfileDropdownList    = document.getElementById("manual-profile-dropdown-list");
+const manualProfileApplyBtn        = document.getElementById("manual-profile-apply-btn");
+const manualProfileStatus          = document.getElementById("manual-profile-status");
 const deviceSelect        = document.getElementById("device-select");
 const keyPopup            = document.getElementById("key-popup");
 const keyPopupTitle       = document.getElementById("key-popup-title");
@@ -192,6 +206,33 @@ const CYBORG2_SECTIONS = [
     },
 ];
 
+const CYBORG1_SECTIONS = [
+    {
+        label: "Main Body",
+        transition: "Move your thumb over to the 5-way cluster",
+        ids: ["map-dungeon-finder","row1-btn2","row1-btn3","row1-btn4",
+              "crusaders-strike","judgement","consecrate","focus-target-macro",
+              "light-of-dawn","holy-shock","flash-of-light","holy-light","word-of-glory","extra-actionbutton",
+              "hammer-of-wrath","blessing-of-seasons","kick","racial-ability",
+              "mage-food-mana-drink","combat-ress","lay-on-hands","jump"],
+    },
+    {
+        label: "5-Way Cluster",
+        transition: "Now press the two side buttons next to the joystick",
+        ids: ["bags-character","spellbook-talents","social-esc","utility-ring","dungeon-portals"],
+    },
+    {
+        label: "Side Buttons",
+        transition: "Finally, press the joystick click",
+        ids: ["mount-journal"],
+    },
+    {
+        label: "Joystick Click",
+        transition: null,
+        ids: ["movement-ability"],
+    },
+];
+
 const KEYZEN_SECTIONS = [
     {
         label: "Main Body",
@@ -309,6 +350,26 @@ const DEVICE_CONFIGS = {
         calibrationSections: CYBORG2_SECTIONS,
         knownPid: "12F7",
     },
+    'cyborg1': {
+        name: 'LH Cyborg I',
+        baseKeys: KEYS_CYBORG1,
+        pinToKeyId: PIN_TO_KEY_ID_CYBORG2,
+        joystick: { left: 434, top: 286 },
+        contentWidth: 665,
+        autoDetectDevice: null,
+        calibrationSections: CYBORG1_SECTIONS,
+        knownPid: "113C",
+    },
+    'cyborg1-lefty': {
+        name: 'RH Cyborg I',
+        baseKeys: KEYS_CYBORG1_LEFTY,
+        pinToKeyId: PIN_TO_KEY_ID_CYBORG2,
+        joystick: { left: 111, top: 286 },
+        contentWidth: 665,
+        autoDetectDevice: null,
+        calibrationSections: CYBORG1_SECTIONS,
+        knownPid: "113C",
+    },
     'keyzen': {
         name: 'LH Keyzen',
         baseKeys: KEYS_KEYZEN,
@@ -369,6 +430,7 @@ let overlayScale   = parseFloat(localStorage.getItem("overlayScale"))   || 1;
 let overlayOpacity = parseFloat(localStorage.getItem("overlayOpacity")) || 1;
 let accentColor    = localStorage.getItem("accentColor") || "#ffffff";
 let keyBgColor     = localStorage.getItem("keyBgColor")  || "#0f0f0f";
+let keyTextMode    = localStorage.getItem("keyTextMode") || "label";
 
 // Active layout state — populated by switchDevice()
 let keys   = [];
@@ -417,9 +479,18 @@ function setBackendStatus(connected) {
     }
 }
 
+let hasOpenedOptionsPanel = localStorage.getItem("hasOpenedOptionsPanel") === "true";
+
+function markOptionsPanelOpened() {
+    if (hasOpenedOptionsPanel) return;
+    hasOpenedOptionsPanel = true;
+    localStorage.setItem("hasOpenedOptionsPanel", "true");
+}
+
 function updateCalibrateHint() {
     const hasAnyBind = Object.keys(keyMap).length > 0;
-    calibrateHint.style.display = hasAnyBind ? "none" : "block";
+    const panelOpen  = optionsPanel.style.display === "flex";
+    calibrateHint.style.display = (hasAnyBind || panelOpen || hasOpenedOptionsPanel) ? "none" : "block";
 }
 
 function connectWebSocket() {
@@ -604,6 +675,7 @@ function applyCalibration(map) {
         const allKeys = Array.isArray(keyValue) ? keyValue : [keyValue];
         keyObj.keybind = allKeys[0];
         allKeys.forEach(k => { if (k) keyMap[k] = elementId; });
+        renderKeyText(keyObj);
     }
 }
 
@@ -627,6 +699,7 @@ function startCalibration() {
     calibrationMap           = {};
     calibrationCooldownUntil = 0;
     optionsPanel.style.display = "none";
+    updateCalibrateHint();
     overlayContent.classList.remove("edit-mode");
     document.activeElement?.blur();
     if (isClickthrough) ipcRenderer.send("set-clickthrough", false);
@@ -802,6 +875,7 @@ function cancelCalibration() {
 
 calibrateBtn.addEventListener("click", () => {
     optionsPanel.style.display = "none";
+    updateCalibrateHint();
     overlayContent.classList.remove("edit-mode");
     startCalibration();
 });
@@ -869,13 +943,10 @@ applyDefaultCalibrationIfNeeded();
 
 closeButton.addEventListener("click", () => window.close());
 
-optionsButton.addEventListener("click", () => {
-    if (calibrationActive) { cancelCalibration(); return; }
-    const opening = optionsPanel.style.display !== "flex";
-    optionsPanel.style.display = opening ? "flex" : "none";
-    overlayContent.classList.toggle("edit-mode", opening);
-    if (!opening) { closeKeyPopup(); return; }
-
+// Floats the panel above the whole overlay if there's room, otherwise below the key
+// grid — used both for a manual gear-icon open and the automatic first-run open, so
+// neither path leaves the panel at its static CSS position overlapping the grid.
+function positionOptionsPanel() {
     const uiRect    = optionsUi.getBoundingClientRect();
     const panelH    = optionsPanel.getBoundingClientRect().height;
     const overlayRect = overlay.getBoundingClientRect();
@@ -893,6 +964,18 @@ optionsButton.addEventListener("click", () => {
         });
         optionsPanel.style.top = (maxKeyBottom - uiRect.top + 8) + "px";
     }
+}
+
+optionsButton.addEventListener("click", () => {
+    if (calibrationActive) { cancelCalibration(); return; }
+    const opening = optionsPanel.style.display !== "flex";
+    optionsPanel.style.display = opening ? "flex" : "none";
+    if (opening) markOptionsPanelOpened();
+    updateCalibrateHint();
+    overlayContent.classList.toggle("edit-mode", opening);
+    if (!opening) { closeKeyPopup(); return; }
+
+    positionOptionsPanel();
 });
 
 
@@ -966,6 +1049,38 @@ keyBgPicker.addEventListener("input", () => {
 
 
 /* -----------------------------
+   KEY TEXT DISPLAY MODE
+   Label only (default), Keybind only, or both stacked on separate lines.
+----------------------------- */
+
+function getKeyDisplayText(keyObj) {
+    const label   = keyObj.label   || "";
+    const keybind = keyObj.keybind || "";
+    if (keyTextMode === "keybind") return keybind || label;
+    if (keyTextMode === "both") {
+        if (label && keybind && label !== keybind) return label + "\n" + keybind;
+        return label || keybind;
+    }
+    return label || keybind; // "label" (default)
+}
+
+function renderKeyText(keyObj) {
+    const el = document.getElementById(keyObj.id);
+    if (!el || el.classList.contains("scroll-indicator")) return;
+    el.innerText = getKeyDisplayText(keyObj);
+    el.classList.toggle("empty", !keyObj.label && !keyObj.keybind);
+}
+
+keyTextModeSelect.value = keyTextMode;
+keyTextModeSelect.addEventListener("change", () => {
+    keyTextMode = keyTextModeSelect.value;
+    localStorage.setItem("keyTextMode", keyTextMode);
+    keys.forEach(renderKeyText);
+});
+
+
+
+/* -----------------------------
    UNLOCK / DRAG
 ----------------------------- */
 
@@ -1013,6 +1128,7 @@ function setClickthrough(value) {
     clickthroughBtn.classList.toggle("active", value);
     if (value) {
         optionsPanel.style.display = "none";
+        updateCalibrateHint();
         overlayContent.classList.remove("edit-mode");
         closeKeyPopup();
     }
@@ -1280,8 +1396,6 @@ function applyAzeronProfile(profile) {
         if (label) {
             seenPins.add(input.pinOne);
             keyObj.label = label;
-            const el = document.getElementById(keyId);
-            if (el) el.innerText = label;
         }
 
         if (isKbd) {
@@ -1302,11 +1416,7 @@ function applyAzeronProfile(profile) {
                 keyObj.keybind = keybind;
                 keyMap[keybind] = keyId;
                 seenPins.add(input.pinOne);
-                if (!label) {
-                    keyObj.label = keybind;
-                    const el = document.getElementById(keyId);
-                    if (el) el.innerText = keybind;
-                }
+                if (!label) keyObj.label = keybind;
             }
         } else if (isModOnly) {
             const keybind = resolveModifier(input.metaValues[0]);
@@ -1314,19 +1424,12 @@ function applyAzeronProfile(profile) {
             keyObj.keybind = keybind;
             keyMap[keybind] = keyId;
             seenPins.add(input.pinOne);
-            if (!label) {
-                keyObj.label = keybind;
-                const el = document.getElementById(keyId);
-                if (el) el.innerText = keybind;
-            }
+            if (!label) keyObj.label = keybind;
         } else if (isJoyBtn) {
             seenPins.add(input.pinOne);
-            if (!label) {
-                keyObj.label = String(input.keyValues[0]);
-                const el = document.getElementById(keyId);
-                if (el) el.innerText = String(input.keyValues[0]);
-            }
+            if (!label) keyObj.label = String(input.keyValues[0]);
         }
+        renderKeyText(keyObj);
         count++;
     }
 
@@ -1343,8 +1446,7 @@ function applyAzeronProfile(profile) {
         delete keyMap[keyObj.keybind];
         keyObj.keybind = "";
         keyObj.label = "";
-        const el = document.getElementById(keyId);
-        if (el) el.innerText = "";
+        renderKeyText(keyObj);
     }
 
     saveKeybinds();
@@ -1451,6 +1553,139 @@ profileApplyBtn.addEventListener("click", () => {
 
 
 
+/* -----------------------------
+   MANUAL PROFILES
+   Named, hand-built snapshots of the current device's keybinds — saved as JSON
+   files on disk (via main.js IPC) rather than an Azeron export, so hardware
+   that the import feature doesn't support yet can still get named, switchable
+   profiles. Scoped per-device: each device's profile list only shows profiles
+   saved while that device was active.
+----------------------------- */
+
+let manualProfiles          = [];
+let selectedManualProfileIdx = 0;
+let manualProfileStatusTimer = null;
+
+function showManualProfileStatus(msg) {
+    manualProfileStatus.textContent = msg;
+    manualProfileStatus.style.display = "";
+    clearTimeout(manualProfileStatusTimer);
+    manualProfileStatusTimer = setTimeout(() => { manualProfileStatus.style.display = "none"; }, 4000);
+}
+
+function applyManualProfile(profile) {
+    let n = 0;
+    keys.forEach(keyObj => {
+        const saved   = profile.keys?.[keyObj.id];
+        const label   = saved?.label   || "";
+        const keybind = saved?.keybind || "";
+        if (keyObj.keybind) delete keyMap[keyObj.keybind];
+        keyObj.label   = label;
+        keyObj.keybind = keybind;
+        if (keybind) { keyMap[keybind] = keyObj.id; n++; }
+        renderKeyText(keyObj);
+    });
+    saveKeybinds();
+    return n;
+}
+
+function renderManualProfileSelect() {
+    if (!manualProfiles.length) { manualProfileSelectRow.style.display = "none"; return; }
+    if (selectedManualProfileIdx >= manualProfiles.length) {
+        selectedManualProfileIdx = manualProfiles.length - 1;
+    }
+
+    manualProfileDropdownList.innerHTML = "";
+    manualProfiles.forEach((p, i) => {
+        const item = document.createElement("div");
+        item.className = "profile-dropdown-item" + (i === selectedManualProfileIdx ? " selected" : "");
+
+        const nameEl = document.createElement("span");
+        nameEl.className = "profile-dropdown-item-name";
+        nameEl.textContent = p.name;
+        item.addEventListener("click", () => {
+            selectedManualProfileIdx = i;
+            manualProfileDropdownList.style.display = "none";
+            renderManualProfileSelect();
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "profile-item-remove";
+        removeBtn.textContent = "✕";
+        removeBtn.title = "Delete";
+        removeBtn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            const removedName = manualProfiles[i].name;
+            await ipcRenderer.invoke("delete-manual-profile", activeDeviceId, removedName);
+            await loadManualProfiles();
+            manualProfileDropdownList.style.display = "";
+            showManualProfileStatus(`Deleted "${removedName}".`);
+        });
+
+        item.appendChild(nameEl);
+        item.appendChild(removeBtn);
+        manualProfileDropdownList.appendChild(item);
+    });
+
+    const sel = manualProfiles[selectedManualProfileIdx];
+    manualProfileDropdownTrigger.textContent = (sel?.name || `Profile ${selectedManualProfileIdx + 1}`) + " ▾";
+    manualProfileSelectRow.style.display = "flex";
+}
+
+async function loadManualProfiles() {
+    manualProfiles = await ipcRenderer.invoke("list-manual-profiles", activeDeviceId);
+    selectedManualProfileIdx = 0;
+    renderManualProfileSelect();
+}
+
+manualProfileSaveBtn.addEventListener("click", async () => {
+    const name = manualProfileNameInput.value.trim();
+    if (!name) { showManualProfileStatus("Enter a profile name."); return; }
+
+    const data = {};
+    keys.forEach(k => { data[k.id] = { label: k.label, keybind: k.keybind }; });
+
+    const result = await ipcRenderer.invoke("save-manual-profile", activeDeviceId, { name, keys: data });
+    if (!result?.ok) { showManualProfileStatus(result?.error || "Failed to save profile."); return; }
+
+    manualProfileNameInput.value = "";
+    await loadManualProfiles();
+    selectedManualProfileIdx = manualProfiles.findIndex(p => p.name === name);
+    if (selectedManualProfileIdx < 0) selectedManualProfileIdx = 0;
+    renderManualProfileSelect();
+    showManualProfileStatus(`Saved "${name}".`);
+});
+
+manualProfileDropdownTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = manualProfileDropdownList.style.display !== "none";
+    manualProfileDropdownList.style.display = isOpen ? "none" : "";
+});
+
+manualProfileApplyBtn.addEventListener("click", () => {
+    const profile = manualProfiles[selectedManualProfileIdx];
+    if (!profile) return;
+    const n = applyManualProfile(profile);
+    showManualProfileStatus(`Applied "${profile.name}": ${n} keys updated.`);
+});
+
+function updateProfileModeView() {
+    const manual = localStorage.getItem("profileMode") === "manual";
+    profileModeToggle.checked      = manual;
+    profileModeLabel.textContent   = manual ? "Manual" : "Import";
+    profileImportView.style.display = manual ? "none" : "flex";
+    profileManualView.style.display = manual ? "flex" : "none";
+}
+
+profileModeToggle.addEventListener("change", () => {
+    localStorage.setItem("profileMode", profileModeToggle.checked ? "manual" : "import");
+    updateProfileModeView();
+});
+
+updateProfileModeView();
+
+
+
 // F8/F9 come from globalShortcut in main.js so they fire even when a game has focus
 ipcRenderer.on("global-key", (_event, key) => {
     const editingPopup = document.activeElement === popupLabelInput ||
@@ -1512,7 +1747,7 @@ function switchDevice(deviceId) {
             el.classList.add("scroll-indicator");
             el.innerHTML = '<span class="scroll-arrow">↑</span><span class="scroll-divider"></span><span class="scroll-arrow">↓</span>';
         } else {
-            el.innerText = keyData.label;
+            el.innerText = getKeyDisplayText(keyData);
             if (keyData.keybind) keyMap[keyData.keybind] = keyData.id;
             el.classList.toggle("empty", !keyData.label && !keyData.keybind);
             el.addEventListener("click", (e) => {
@@ -1536,6 +1771,10 @@ function switchDevice(deviceId) {
     // Apply saved or community calibration for the new device
     applyDefaultCalibrationIfNeeded();
     updateCalibrationStatus();
+
+    // Manual profiles are scoped per-device — refresh the list for the new device
+    manualProfileNameInput.value = "";
+    loadManualProfiles();
 }
 
 deviceSelect.addEventListener("change", () => {
@@ -1571,8 +1810,7 @@ function closeKeyPopup() {
 function commitLabel() {
     if (!currentEditingKey) return;
     currentEditingKey.label = popupLabelInput.value;
-    const el = document.getElementById(currentEditingKey.id);
-    if (el) el.innerText = currentEditingKey.label;
+    renderKeyText(currentEditingKey);
     saveKeybinds();
 }
 
@@ -1583,6 +1821,7 @@ function commitKeybind() {
     delete keyMap[currentEditingKey.keybind];
     currentEditingKey.keybind = newBind;
     keyMap[newBind] = currentEditingKey.id;
+    renderKeyText(currentEditingKey);
     saveKeybinds();
 }
 
@@ -1673,6 +1912,9 @@ document.addEventListener("click", (e) => {
     if (!profileDropdownList.contains(e.target) && e.target !== profileDropdownTrigger) {
         profileDropdownList.style.display = "none";
     }
+    if (!manualProfileDropdownList.contains(e.target) && e.target !== manualProfileDropdownTrigger) {
+        manualProfileDropdownList.style.display = "none";
+    }
 });
 
 
@@ -1720,8 +1962,10 @@ document.addEventListener("click", (e) => {
     const hasCal      = !!localStorage.getItem("calibration_" + activeDeviceId);
     if (!hasKeybinds && !hasCal) {
         optionsPanel.style.display = "flex";
+        markOptionsPanelOpened();
         overlayContent.classList.add("edit-mode");
         ipcRenderer.send("set-clickthrough", false);
+        positionOptionsPanel();
     }
 
     updateCalibrateHint();

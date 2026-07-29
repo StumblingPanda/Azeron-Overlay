@@ -7,13 +7,15 @@ as a quick visual reference while gaming.
 
 ## Device Support
 
-All six devices are fully supported. The built-in calibration wizard works
+All eight devices are fully supported. The built-in calibration wizard works
 for any hardware revision without needing a profile export.
 
 | Device | Layout | Calibration Wizard | Profile Import |
 |---|---|---|---|
 | LH Cyborg II | ✅ | ✅ | ✅ |
 | RH Cyborg II | ✅ | ✅ | ❓ |
+| LH Cyborg I | ✅ | ✅ | ❓ |
+| RH Cyborg I | ✅ | ✅ | ❓ |
 | LH Keyzen | ✅ | ✅ | ❓ |
 | RH Keyzen | ✅ | ❓ | ❓ |
 | RH Cyro | ✅ | ✅ | ❓ |
@@ -64,7 +66,7 @@ The wizard walks you through pressing each physical button in turn and maps them
 
 | Setting | What it does |
 |---|---|
-| Model | Switch between LH/RH Cyborg II, Keyzen, and Cyro layouts |
+| Model | Switch between LH/RH Cyborg II, LH/RH Cyborg I, Keyzen, and Cyro layouts |
 | Calibrate Buttons… | Open the calibration wizard |
 | Share anonymous data | Toggle whether calibration data is submitted after calibrating |
 | Scale | Resize the entire overlay |
