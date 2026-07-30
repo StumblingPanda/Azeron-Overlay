@@ -1291,6 +1291,17 @@ const AZERON_MACRO_KV_OVERRIDE = {
     25: "u",
 };
 
+// Azeron profile type "15" = a button assigned a native mouse-click function, with
+// keyValues[0] selecting which button. Confirmed from a user's own export (Cyborg II,
+// "Mouse" profile): the two side buttons next to the joystick, one set to Left Click
+// or Right Click respectively, exported as type "15" with keyValues "1" and "3". Other
+// keyValues (e.g. middle/back/forward click) are unconfirmed and intentionally left
+// unmapped rather than guessed.
+const MOUSE_CLICK_KV_TO_BIND = {
+    "1": { keybind: "mouse1", label: "Left Click" },
+    "3": { keybind: "mouse2", label: "Right Click" },
+};
+
 function resolveKey(val) {
     if (!val || val === "0") return null;
     const letter = val.match(/^Key([A-Z])$/);
@@ -1391,7 +1402,8 @@ function applyAzeronProfile(profile) {
                           !!resolveModifier(input.metaValues?.[0]);
         const isJoyBtn  = input.types?.[0] === "5" &&
                           input.keyValues?.[0] && input.keyValues?.[0] !== "0";
-        if (!label && !isKbd && !isModOnly && !isJoyBtn) continue;
+        const mouseClick = input.types?.[0] === "15" ? MOUSE_CLICK_KV_TO_BIND[input.keyValues?.[0]] : undefined;
+        if (!label && !isKbd && !isModOnly && !isJoyBtn && !mouseClick) continue;
 
         if (label) {
             seenPins.add(input.pinOne);
@@ -1428,6 +1440,12 @@ function applyAzeronProfile(profile) {
         } else if (isJoyBtn) {
             seenPins.add(input.pinOne);
             if (!label) keyObj.label = String(input.keyValues[0]);
+        } else if (mouseClick) {
+            delete keyMap[keyObj.keybind];
+            keyObj.keybind = mouseClick.keybind;
+            keyMap[mouseClick.keybind] = keyId;
+            seenPins.add(input.pinOne);
+            if (!label) keyObj.label = mouseClick.label;
         }
         renderKeyText(keyObj);
         count++;

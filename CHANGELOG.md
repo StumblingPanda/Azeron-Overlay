@@ -4,6 +4,15 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.6.1] - 2026-07-31
+
+### Fixed
+- Azeron buttons bound to a mouse click (Left/Right Click, etc.) could silently stop reacting entirely — the listener only registered for mouse raw input if an Azeron mouse interface was already detected at startup, so a device whose mouse sub-interface enumerated a moment after the keyboard one (or connected after the app launched) never received `WM_INPUT` mouse messages for the rest of the session. Raw input registration now re-runs whenever the detected mouse/joystick interface set changes
+- Mouse button presses crashed the raw input callback with `AttributeError: 'RAWMOUSE' object has no attribute 'usButtonFlags'` due to one level of union access being skipped in the ctypes struct — fixed the field path, so mouse button events are parsed correctly instead of silently failing
+- Profile import didn't recognize Azeron profile buttons assigned to a native mouse click (type `"15"`) — they imported with no label and no keybind, so the corresponding overlay tile stayed blank and never highlighted. Left Click and Right Click assignments are now imported like any other bind
+
+---
+
 ## [1.6.0] - 2026-07-29
 
 ### Added

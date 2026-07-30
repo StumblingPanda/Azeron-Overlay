@@ -481,6 +481,37 @@ def run_raw_input_loop(kb_handles, mouse_handles, joystick_handles):
     user32.DefWindowProcW.restype  = ctypes.c_long
     user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 
+    registered_mouse    = False
+    registered_joystick = False
+
+    def register_usages(hwnd):
+        # Which usage pages we listen on depends on whether an Azeron mouse/joystick
+        # interface has actually been seen — re-run this any time that changes (not
+        # just once at startup), otherwise a mouse/joystick interface that enumerates
+        # after the initial scan (hotplug, or a composite device's sub-interfaces
+        # finishing enumeration slightly after its keyboard interface) never gets its
+        # WM_INPUT messages delivered for the rest of the session, even though
+        # find_azeron_handles() has already picked it up for hDevice filtering.
+        nonlocal registered_mouse, registered_joystick
+        usages = [0x06]  # Keyboard, always
+        if mouse_handles:
+            usages.append(0x02)  # Mouse
+        if joystick_handles:
+            usages += [0x04, 0x05]  # Joystick, Game Pad — only if an Azeron was found in that mode,
+                                     # so we don't also start capturing an unrelated real gamepad
+        rids = (RAWINPUTDEVICE * len(usages))()
+        for i, usage in enumerate(usages):
+            rids[i].usUsagePage = 0x01
+            rids[i].usUsage     = usage
+            rids[i].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
+            rids[i].hwndTarget  = hwnd
+        if not user32.RegisterRawInputDevices(rids, len(usages), ctypes.sizeof(RAWINPUTDEVICE)):
+            print("Failed to register raw input devices", flush=True)
+            return False
+        registered_mouse    = bool(mouse_handles)
+        registered_joystick = bool(joystick_handles)
+        return True
+
     def wnd_proc(hwnd, msg, wparam, lparam):
         if msg == WM_INPUT:
             sz = wintypes.UINT(0)
@@ -523,7 +554,7 @@ def run_raw_input_loop(kb_handles, mouse_handles, joystick_handles):
 
             elif raw.header.hDevice in mouse_handles and raw.header.dwType == RIM_TYPEMOUSE:
                 dev_id = handle_to_dev_id.get(raw.header.hDevice, "")
-                flags = raw.mouse.usButtonFlags
+                flags = raw.mouse.s.usButtonFlags
                 for down_flag, up_flag, btn_name in MOUSE_BUTTONS:
                     if flags & down_flag:
                         print(f"{btn_name}:down", flush=True)
@@ -559,6 +590,8 @@ def run_raw_input_loop(kb_handles, mouse_handles, joystick_handles):
                             print(f"Joystick HID parse error: {e}", flush=True)
         elif msg == WM_INPUT_DEVICE_CHANGE:
             refresh_azeron_handles(kb_handles, mouse_handles, joystick_handles)
+            if bool(mouse_handles) != registered_mouse or bool(joystick_handles) != registered_joystick:
+                register_usages(hwnd)
         return user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     wnd_proc_cb = WNDPROC(wnd_proc)
@@ -583,22 +616,7 @@ def run_raw_input_loop(kb_handles, mouse_handles, joystick_handles):
         print(f"Failed to create message window (error {kernel32.GetLastError()})", flush=True)
         return
 
-    usages = [0x06]  # Keyboard, always
-    if mouse_handles:
-        usages.append(0x02)  # Mouse
-    if joystick_handles:
-        usages += [0x04, 0x05]  # Joystick, Game Pad — only if an Azeron was found in that mode,
-                                 # so we don't also start capturing an unrelated real gamepad
-
-    rids = (RAWINPUTDEVICE * len(usages))()
-    for i, usage in enumerate(usages):
-        rids[i].usUsagePage = 0x01
-        rids[i].usUsage     = usage
-        rids[i].dwFlags     = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY
-        rids[i].hwndTarget  = hwnd
-
-    if not user32.RegisterRawInputDevices(rids, len(usages), ctypes.sizeof(RAWINPUTDEVICE)):
-        print("Failed to register raw input devices", flush=True)
+    if not register_usages(hwnd):
         return
 
     print("Raw input listener active", flush=True)
