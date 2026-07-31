@@ -4,6 +4,13 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.7.1] - 2026-08-01
+
+### Fixed
+- Cyborg I/II button ids were internally named after the dev's own old WoW keybinds (e.g. `map-dungeon-finder`, `crusaders-strike`, `holy-shock`) and leaked into the anonymous Supabase calibration uploads as-is, showing up as if they were part of another user's own mapping. All Cyborg I/II ids are renamed to a neutral `az-r{row}c{col}` scheme, matching the naming already used for Cyro and Keyzen. Calibrations saved under the old ids are migrated automatically on load, so no one needs to recalibrate after updating
+
+---
+
 ## [1.7.0] - 2026-07-31
 
 ### Added

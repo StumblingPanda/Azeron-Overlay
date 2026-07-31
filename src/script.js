@@ -91,44 +91,44 @@ const calibrationStatus      = document.getElementById("calibration-status");
 
 // Device configurations
 const PIN_TO_KEY_ID_CYBORG2 = {
-     1: "mage-food-mana-drink",   2: "hammer-of-wrath",     3: "holy-shock",
-     4: "crusaders-strike",       5: "map-dungeon-finder",  6: "light-of-dawn",
-     7: "combat-ress",            8: "blessing-of-seasons", 9: "flash-of-light",
-    10: "judgement",             11: "row1-btn2",           13: "lay-on-hands",
-    14: "kick",                  15: "holy-light",          16: "consecrate",
-    17: "row1-btn3",             19: "mount-journal",       20: "appearances-log",
-    22: "jump",                  23: "racial-ability",      24: "word-of-glory",
-    25: "focus-target-macro",    26: "row1-btn4",           27: "extra-actionbutton",
-    32: "movement-ability",      33: "utility-ring",        34: "bags-character",
-    35: "spellbook-talents",     36: "dungeon-portals",     37: "social-esc",
+     1: "az-r5c0",   2: "az-r4c0",   3: "az-r3c1",
+     4: "az-r2c0",   5: "az-r1c0",   6: "az-r3c0",
+     7: "az-r5c1",   8: "az-r4c1",   9: "az-r3c2",
+    10: "az-r2c1",  11: "az-r1c1",  13: "az-r5c2",
+    14: "az-r4c2",  15: "az-r3c3",  16: "az-r2c2",
+    17: "az-r1c2",  19: "az-r4c4",  20: "az-r3c6",
+    22: "az-r5c3",  23: "az-r4c3",  24: "az-r3c4",
+    25: "az-r2c3",  26: "az-r1c3",  27: "az-r3c5",
+    32: "az-r5c4",  33: "az-r1c6",  34: "az-r0c0",
+    35: "az-r1c4",  36: "az-r2c4",  37: "az-r1c5",
 };
 
 // Cyborg II firmware v1.5.x uses 0-based pin numbering — physically different from v1 map.
 // Derived from Benji_Profile.json cross-referenced with Azeron Software 1.5.6 screenshot.
 const PIN_TO_KEY_ID_CYBORG2_V2 = {
     // Row 1 — top row main cluster (left → right)
-    22: "map-dungeon-finder",   39: "row1-btn2",    3: "row1-btn3",    9: "row1-btn4",
+    22: "az-r1c0",   39: "az-r1c1",    3: "az-r1c2",    9: "az-r1c3",
     // Row 1 — extended right module (C, empty slot, O)
-    14: "spellbook-talents",   17: "social-esc",   12: "utility-ring",
+    14: "az-r1c4",   17: "az-r1c5",   12: "az-r1c6",
     // Row 2 — main cluster
-    23: "crusaders-strike",    38: "judgement",     2: "consecrate",    8: "focus-target-macro",
+    23: "az-r2c0",    38: "az-r2c1",     2: "az-r2c2",    8: "az-r2c3",
     // Row 2 — right module (B)
-    13: "dungeon-portals",
+    13: "az-r2c4",
     // Row 3 — main cluster (ESC + 5 buttons)
-    21: "light-of-dawn",       24: "holy-shock",   18: "flash-of-light",
-     1: "holy-light",           7: "word-of-glory", 10: "extra-actionbutton",
+    21: "az-r3c0",       24: "az-r3c1",   18: "az-r3c2",
+     1: "az-r3c3",           7: "az-r3c4", 10: "az-r3c5",
     // Row 3 — far right (Tab; pinOne=255 in v1.5.x for software-layer keys)
-   255: "appearances-log",
+   255: "az-r3c6",
     // Row 4 — main cluster
-    25: "hammer-of-wrath",     19: "blessing-of-seasons",  0: "kick",   5: "racial-ability",
+    25: "az-r4c0",     19: "az-r4c1",  0: "az-r4c2",   5: "az-r4c3",
     // Row 4 — far right (Ctrl+Shift+F1; pins 28 and 43 are the same physical button)
-    28: "mount-journal",       43: "mount-journal",
+    28: "az-r4c4",       43: "az-r4c4",
     // Row 5 — main cluster
-    26: "mage-food-mana-drink", 20: "combat-ress", 27: "lay-on-hands",  4: "jump",
+    26: "az-r5c0", 20: "az-r5c1", 27: "az-r5c2",  4: "az-r5c3",
     // Row 5 — right (joystick button)
-    40: "movement-ability",
+    40: "az-r5c4",
     // Row 0 — single top button
-    11: "bags-character",
+    11: "az-r0c0",
 };
 
 // All 22 keyboard buttons mapped. cy-r4c3 is the scroll encoder (no keyboard event).
@@ -184,26 +184,26 @@ const CYBORG2_SECTIONS = [
     {
         label: "Main Body",
         transition: "Move your thumb over to the 5-way cluster",
-        ids: ["map-dungeon-finder","row1-btn2","row1-btn3","row1-btn4",
-              "crusaders-strike","judgement","consecrate","focus-target-macro",
-              "light-of-dawn","holy-shock","flash-of-light","holy-light","word-of-glory","extra-actionbutton",
-              "hammer-of-wrath","blessing-of-seasons","kick","racial-ability",
-              "mage-food-mana-drink","combat-ress","lay-on-hands","jump"],
+        ids: ["az-r1c0","az-r1c1","az-r1c2","az-r1c3",
+              "az-r2c0","az-r2c1","az-r2c2","az-r2c3",
+              "az-r3c0","az-r3c1","az-r3c2","az-r3c3","az-r3c4","az-r3c5",
+              "az-r4c0","az-r4c1","az-r4c2","az-r4c3",
+              "az-r5c0","az-r5c1","az-r5c2","az-r5c3"],
     },
     {
         label: "5-Way Cluster",
         transition: "Now press the two side buttons next to the joystick",
-        ids: ["bags-character","spellbook-talents","social-esc","utility-ring","dungeon-portals"],
+        ids: ["az-r0c0","az-r1c4","az-r1c5","az-r1c6","az-r2c4"],
     },
     {
         label: "Side Buttons",
         transition: "Finally, press the joystick click",
-        ids: ["appearances-log","mount-journal"],
+        ids: ["az-r3c6","az-r4c4"],
     },
     {
         label: "Joystick Click",
         transition: null,
-        ids: ["movement-ability"],
+        ids: ["az-r5c4"],
     },
 ];
 
@@ -211,26 +211,26 @@ const CYBORG1_SECTIONS = [
     {
         label: "Main Body",
         transition: "Move your thumb over to the 5-way cluster",
-        ids: ["map-dungeon-finder","row1-btn2","row1-btn3","row1-btn4",
-              "crusaders-strike","judgement","consecrate","focus-target-macro",
-              "light-of-dawn","holy-shock","flash-of-light","holy-light","word-of-glory","extra-actionbutton",
-              "hammer-of-wrath","blessing-of-seasons","kick","racial-ability",
-              "mage-food-mana-drink","combat-ress","lay-on-hands","jump"],
+        ids: ["az-r1c0","az-r1c1","az-r1c2","az-r1c3",
+              "az-r2c0","az-r2c1","az-r2c2","az-r2c3",
+              "az-r3c0","az-r3c1","az-r3c2","az-r3c3","az-r3c4","az-r3c5",
+              "az-r4c0","az-r4c1","az-r4c2","az-r4c3",
+              "az-r5c0","az-r5c1","az-r5c2","az-r5c3"],
     },
     {
         label: "5-Way Cluster",
         transition: "Now press the two side buttons next to the joystick",
-        ids: ["bags-character","spellbook-talents","social-esc","utility-ring","dungeon-portals"],
+        ids: ["az-r0c0","az-r1c4","az-r1c5","az-r1c6","az-r2c4"],
     },
     {
         label: "Side Buttons",
         transition: "Finally, press the joystick click",
-        ids: ["mount-journal"],
+        ids: ["az-r4c4"],
     },
     {
         label: "Joystick Click",
         transition: null,
-        ids: ["movement-ability"],
+        ids: ["az-r5c4"],
     },
 ];
 
@@ -693,10 +693,43 @@ function handleDeviceInfo(pids, deviceIds) {
     updateCalibrationStatus();
 }
 
+// Pre-1.8.0 Cyborg I/II button ids were named after the dev's own WoW keybinds
+// (e.g. "map-dungeon-finder", "crusaders-strike") and leaked into the anonymous
+// Supabase calibration uploads as-is. Renamed to neutral "az-r{row}c{col}" ids;
+// this table lets calibrations saved under the old ids keep working after update.
+const LEGACY_ID_ALIASES = {
+    "bags-character": "az-r0c0",
+    "map-dungeon-finder": "az-r1c0",  "row1-btn2": "az-r1c1",
+    "row1-btn3": "az-r1c2",           "row1-btn4": "az-r1c3",
+    "spellbook-talents": "az-r1c4",   "social-esc": "az-r1c5",
+    "utility-ring": "az-r1c6",
+    "crusaders-strike": "az-r2c0",    "judgement": "az-r2c1",
+    "consecrate": "az-r2c2",          "focus-target-macro": "az-r2c3",
+    "dungeon-portals": "az-r2c4",
+    "light-of-dawn": "az-r3c0",       "holy-shock": "az-r3c1",
+    "flash-of-light": "az-r3c2",      "holy-light": "az-r3c3",
+    "word-of-glory": "az-r3c4",       "extra-actionbutton": "az-r3c5",
+    "appearances-log": "az-r3c6",
+    "hammer-of-wrath": "az-r4c0",     "blessing-of-seasons": "az-r4c1",
+    "kick": "az-r4c2",                "racial-ability": "az-r4c3",
+    "mount-journal": "az-r4c4",
+    "mage-food-mana-drink": "az-r5c0","combat-ress": "az-r5c1",
+    "lay-on-hands": "az-r5c2",        "jump": "az-r5c3",
+    "movement-ability": "az-r5c4",
+};
+
 function loadCalibration() {
     try {
         const raw = localStorage.getItem("calibration_" + activeDeviceId);
-        return raw ? JSON.parse(raw) : null;
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Object.keys(parsed).some(id => id in LEGACY_ID_ALIASES)) return parsed;
+        const migrated = {};
+        for (const [id, val] of Object.entries(parsed)) {
+            migrated[LEGACY_ID_ALIASES[id] || id] = val;
+        }
+        saveCalibration(migrated);
+        return migrated;
     } catch { return null; }
 }
 
@@ -963,7 +996,7 @@ calibrationCancelBreakBtn.addEventListener("click", cancelCalibration);
 // Community-sourced default calibration maps, keyed by device_id.
 // Paste calibration_map JSON from Supabase submissions here as they come in.
 const DEFAULT_CALIBRATION_MAPS = {
-    // "cyborg2": { "map-dungeon-finder": "m", ... },
+    // "cyborg2": { "az-r1c0": "m", ... },
 };
 
 function applyDefaultCalibrationIfNeeded() {
