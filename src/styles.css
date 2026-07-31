@@ -380,7 +380,7 @@ body {
     flex-shrink: 0;
 }
 
-.popup-row input, .popup-row textarea {
+.popup-row input, .popup-row textarea, .popup-row select {
     flex: 1;
     min-width: 0;
     field-sizing: content;

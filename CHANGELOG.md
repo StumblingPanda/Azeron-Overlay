@@ -4,6 +4,16 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.6.2] - 2026-07-31
+
+### Fixed
+- Mouse-click-bound buttons (Left/Right Click, etc.) could still fail to highlight even after the v1.6.1 detection fixes — a single physical Azeron enumerates as two separate device IDs (its keyboard-emulation interface and its mouse-click interface). The multi-device binding feature, meant to isolate two genuinely separate physical Azerons, was overwriting the calibrated device binding with whichever interface sent the *last* calibration press — always the keyboard interface, since Joystick Click calibrates last — silently unbinding any mouse-click buttons calibrated earlier in the same session. Calibration now accumulates every device ID seen during the session instead of overwriting
+
+### Added
+- "Mouse" dropdown in the key-edit popup — assign Left Click, Right Click, Middle Click, or Mouse Button 4/5 directly to any overlay button without needing to physically trigger detection
+
+---
+
 ## [1.6.1] - 2026-07-31
 
 ### Fixed

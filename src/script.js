@@ -71,6 +71,7 @@ const keyPopupTitle       = document.getElementById("key-popup-title");
 const keyPopupClose       = document.getElementById("key-popup-close");
 const popupLabelInput     = document.getElementById("popup-label-input");
 const popupKeybindInput   = document.getElementById("popup-keybind-input");
+const popupMouseSelect    = document.getElementById("popup-mouse-select");
 const calibrateBtn           = document.getElementById("calibrate-btn");
 const calibrationWizard      = document.getElementById("calibration-wizard");
 const calibrationStepsView   = document.getElementById("calibration-steps-view");
@@ -493,6 +494,34 @@ function updateCalibrateHint() {
     calibrateHint.style.display = (hasAnyBind || panelOpen || hasOpenedOptionsPanel) ? "none" : "block";
 }
 
+// A single physical Azeron device can enumerate as multiple raw-input dev_ids at
+// once (its keyboard-emulation interface and its mouse-click interface get separate
+// OS handles, so separate dev_ids) — so calibration must bind to the *set* of dev_ids
+// seen while calibrating this layout, not just whichever one sent the last press.
+// Storing only the latest dev_id meant mouse-click buttons (recorded earlier in the
+// wizard) got silently dropped once a later, keyboard-interface press overwrote it.
+function getBoundDeviceIds() {
+    const raw = localStorage.getItem("boundDevice_" + activeDeviceId);
+    if (!raw) return [];
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+        return [raw]; // legacy plain-string value saved before this was array-based
+    }
+}
+
+function shouldIgnoreDeviceEvent(device) {
+    if (connectedDeviceIds.length <= 1 || !device) return false;
+    const bound = getBoundDeviceIds();
+    if (!bound.length) return false;
+    // Only enforce the binding once at least one of its dev_ids is still actually
+    // connected — otherwise a stale binding from an unplugged device would silently
+    // block every future device forever.
+    if (!bound.some(d => connectedDeviceIds.includes(d))) return false;
+    return !bound.includes(device);
+}
+
 function connectWebSocket() {
     socket = new WebSocket("ws://localhost:8765");
 
@@ -534,10 +563,7 @@ function connectWebSocket() {
         }
 
         if (msg.type === "joystick_axis") {
-            if (connectedDeviceIds.length > 1 && msg.device) {
-                const boundDev = localStorage.getItem("boundDevice_" + activeDeviceId);
-                if (boundDev && connectedDeviceIds.includes(boundDev) && boundDev !== msg.device) return;
-            }
+            if (shouldIgnoreDeviceEvent(msg.device)) return;
             if (calibrationActive) return;
             updateJoystickAxis(msg.x, msg.y);
             return;
@@ -546,11 +572,8 @@ function connectWebSocket() {
         const { key, action, device } = msg;
 
         // Multi-device filtering: when >1 Azeron is connected, only react to the
-        // device that was used to calibrate this layout (bound during calibration).
-        if (connectedDeviceIds.length > 1 && device) {
-            const boundDev = localStorage.getItem("boundDevice_" + activeDeviceId);
-            if (boundDev && connectedDeviceIds.includes(boundDev) && boundDev !== device) return;
-        }
+        // device(s) that were used to calibrate this layout (bound during calibration).
+        if (shouldIgnoreDeviceEvent(device)) return;
 
         if (calibrationActive && action === "down") {
             calibrationRecordKey(key, device);
@@ -803,9 +826,17 @@ function flushCalibrationCombo() {
 
 function calibrationRecordKey(key, device) {
     if (Date.now() < calibrationCooldownUntil) return;
-    // Auto-bind this physical device to the current layout on the first key press.
+    // Auto-bind this physical device to the current layout. A single physical Azeron
+    // can send presses under more than one dev_id (its keyboard-emulation interface
+    // vs. its mouse-click interface), so accumulate every dev_id seen this session
+    // instead of overwriting — otherwise whichever interface calibrates last would
+    // silently unbind the others.
     if (device && connectedDeviceIds.length > 1) {
-        localStorage.setItem("boundDevice_" + activeDeviceId, device);
+        const bound = getBoundDeviceIds();
+        if (!bound.includes(device)) {
+            bound.push(device);
+            localStorage.setItem("boundDevice_" + activeDeviceId, JSON.stringify(bound));
+        }
     }
     calibrationComboKeys.push(key);
     if (calibrationComboTimer) clearTimeout(calibrationComboTimer);
@@ -1849,6 +1880,7 @@ function showKeyPopup(keyData) {
     popupLabelInput.value     = keyData.label;
     popupKeybindInput.value   = keyData.keybind;
     popupKeybindInput.classList.remove("capturing");
+    popupMouseSelect.value    = /^mouse[1-5]$/.test(keyData.keybind) ? keyData.keybind : "";
 
     const scaledTop  = keyData.top  * overlayScale;
     const scaledLeft = keyData.left * overlayScale;
@@ -1919,6 +1951,17 @@ popupKeybindInput.addEventListener("keyup", (e) => {
 popupKeybindInput.addEventListener("blur", () => {
     popupKeybindInput.classList.remove("capturing");
     commitKeybind();
+});
+
+popupMouseSelect.addEventListener("change", () => {
+    if (!currentEditingKey || !popupMouseSelect.value) return;
+    const newBind = popupMouseSelect.value;
+    delete keyMap[currentEditingKey.keybind];
+    currentEditingKey.keybind = newBind;
+    keyMap[newBind] = currentEditingKey.id;
+    popupKeybindInput.value = newBind;
+    renderKeyText(currentEditingKey);
+    saveKeybinds();
 });
 
 document.addEventListener("click", (e) => {
