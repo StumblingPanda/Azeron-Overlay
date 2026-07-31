@@ -1,6 +1,6 @@
 {
   "name": "azeron-overlay",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "description": "Azeron keypad overlay for gaming",
   "author": "stumblingpanda",
   "main": "main.js",
@@ -23,6 +23,10 @@
       {
         "from": "resources/listener.exe",
         "to": "listener.exe"
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
       }
     ],
     "win": {

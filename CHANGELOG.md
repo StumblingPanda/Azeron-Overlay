@@ -4,6 +4,13 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.7.0] - 2026-07-31
+
+### Added
+- System tray icon with a "Hide Overlay (for OBS)" toggle — left-click (or the right-click menu) moves the overlay window off past the edge of your rightmost monitor instead of minimizing it, so it's out of your own view but still fully rendered. OBS's Window Capture source keeps showing key highlights the whole time, since it captures the window's contents directly rather than a screen region. Always starts visible on launch; the hidden state isn't remembered between sessions. The tray menu also has a Quit entry
+
+---
+
 ## [1.6.4] - 2026-07-31
 
 ### Fixed

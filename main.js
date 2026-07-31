@@ -1,9 +1,11 @@
-import { app, BrowserWindow, ipcMain, screen, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, globalShortcut, Tray, Menu, nativeImage } from 'electron';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log/main');
@@ -69,9 +71,58 @@ function createWindow() {
     win.loadFile('src/index.html');
 }
 
+// OBS's Window Capture source shows a window's rendered contents regardless of where
+// it's positioned on the desktop — unlike minimizing (which blanks the capture) or
+// hiding the key-grid via CSS (which would hide it from OBS too, since that's the same
+// render both you and OBS see). Moving the window off past every display's right edge
+// keeps it fully rendered — so OBS still shows key highlights — while it's nowhere you
+// can see or accidentally click. Always starts visible; this state is intentionally
+// not persisted across restarts.
+let hiddenForCapture   = false;
+let lastVisibleBounds  = null;
+
+function offscreenBounds(bounds) {
+    const maxRight = Math.max(...screen.getAllDisplays().map(d => d.bounds.x + d.bounds.width));
+    return { x: maxRight + 100, y: bounds.y, width: bounds.width, height: bounds.height };
+}
+
+function toggleCaptureHide() {
+    if (!win) return;
+    if (!hiddenForCapture) {
+        lastVisibleBounds = win.getBounds();
+        win.setBounds(offscreenBounds(lastVisibleBounds));
+    } else if (lastVisibleBounds) {
+        win.setBounds(lastVisibleBounds);
+    }
+    hiddenForCapture = !hiddenForCapture;
+    updateTray();
+}
+
+let tray;
+
+function updateTray() {
+    if (!tray) return;
+    tray.setToolTip(hiddenForCapture ? 'Azeron Overlay (hidden — click to show)' : 'Azeron Overlay');
+    tray.setContextMenu(Menu.buildFromTemplate([
+        { label: hiddenForCapture ? 'Show Overlay' : 'Hide Overlay (for OBS)', click: toggleCaptureHide },
+        { type: 'separator' },
+        { label: 'Quit', click: () => app.quit() },
+    ]));
+}
+
+function createTray() {
+    const iconPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'icon.ico')
+        : path.join(__dirname, 'build', 'icon.ico');
+    tray = new Tray(nativeImage.createFromPath(iconPath));
+    tray.on('click', toggleCaptureHide);
+    updateTray();
+}
+
 app.whenReady().then(() => {
     startPythonBackend();
     createWindow();
+    createTray();
     globalShortcut.register('F8', () => win?.webContents.send('global-key', 'F8'));
     globalShortcut.register('F9', () => win?.webContents.send('global-key', 'F9'));
 
@@ -205,6 +256,7 @@ app.on('before-quit', (event) => {
     quitting = true;
     event.preventDefault();
     globalShortcut.unregisterAll();
+    tray?.destroy();
     killPython().finally(() => app.exit());
 });
 process.on('SIGINT',  () => { quitting = true; killPython().finally(() => process.exit(0)); });
