@@ -512,7 +512,16 @@ function getBoundDeviceIds() {
 }
 
 function shouldIgnoreDeviceEvent(device) {
-    if (connectedDeviceIds.length <= 1 || !device) return false;
+    // Gate on distinct PIDs, not raw dev_id count: a single Azeron enumerates as several
+    // dev_ids (keyboard interface, mouse-click interface, joystick sub-interfaces), so
+    // gating on dev_id count alone treated every mouse-capable Azeron as if a second
+    // physical device were connected. That silently dropped any mouse-click bind made
+    // via the Mouse dropdown or profile import (both skip calibration, so the mouse
+    // interface's dev_id never gets recorded into the bound set below) — those buttons
+    // never highlighted, on any monitor. connectedPids is deduped per physical unit, so
+    // it only trips this filter when genuinely different Azeron hardware is connected
+    // simultaneously, which is what this filter is actually meant to isolate.
+    if (connectedPids.length <= 1 || !device) return false;
     const bound = getBoundDeviceIds();
     if (!bound.length) return false;
     // Only enforce the binding once at least one of its dev_ids is still actually
@@ -837,8 +846,9 @@ function calibrationRecordKey(key, device) {
     // can send presses under more than one dev_id (its keyboard-emulation interface
     // vs. its mouse-click interface), so accumulate every dev_id seen this session
     // instead of overwriting — otherwise whichever interface calibrates last would
-    // silently unbind the others.
-    if (device && connectedDeviceIds.length > 1) {
+    // silently unbind the others. Gate on distinct PIDs (see shouldIgnoreDeviceEvent)
+    // so this only activates when genuinely different Azeron hardware is connected.
+    if (device && connectedPids.length > 1) {
         const bound = getBoundDeviceIds();
         if (!bound.includes(device)) {
             bound.push(device);

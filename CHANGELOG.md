@@ -4,6 +4,15 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.6.4] - 2026-07-31
+
+### Fixed
+- Key highlights could silently miss a repaint or get stuck active when the overlay sat on a non-primary monitor — Windows' native window-occlusion tracking misjudges this always-on-top transparent window as "occluded" whenever it isn't the OS-focused window on its monitor (common on secondary displays), and Chromium throttles rendering for windows it thinks are hidden. Occlusion tracking is now disabled for the overlay window, and renderer background throttling is disabled too
+- Buttons bound to a native mouse click (via the Mouse dropdown or profile import) could fail to highlight entirely — the multi-device filter treated a single Azeron's own separate interfaces (keyboard, mouse-click, joystick) as if a second physical device were connected, since it counted every raw interface ID rather than distinct hardware. Only interfaces confirmed during the physical calibration wizard ever passed that filter, so any mouse-click bind made through the dropdown or a profile import — which skip calibration entirely — was silently dropped forever. The filter now keys off distinct device PIDs, so it only activates when genuinely different Azeron hardware is connected at once
+- The Python backend could be left running after the app closed, permanently holding port 8765 and breaking the next launch — closing the app didn't wait for the backend process to actually be confirmed killed before Electron's own process exited, and a fast enough quit could race the backend's own startup, spawning it after nothing was left tracking it. Shutdown now blocks on confirming the backend is dead before the app is allowed to fully exit
+
+---
+
 ## [1.6.3] - 2026-07-31
 
 ### Fixed
