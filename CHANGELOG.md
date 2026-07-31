@@ -4,6 +4,14 @@ All notable changes to Azeron Overlay are documented here.
 
 ---
 
+## [1.6.3] - 2026-07-31
+
+### Fixed
+- Calibrating mouse-click buttons (Left/Right/Middle Click) could still fail entirely on a device where keyboard-emulation buttons calibrate first — the multi-device filter added in v1.6.2 ran *before* calibration recording, so once the keyboard interface's device ID got bound from earlier steps, presses from the same physical device's *mouse* interface were silently dropped before ever reaching the code that accumulates newly-seen device IDs, deadlocking that interface out of the binding for the rest of the session. Calibration now records every press unfiltered, so it can actually learn all of a device's interfaces
+- Recognized Azeron profile type `"15"` mouse-click value `"2"` (Middle Click) — only `"1"` (Left) and `"3"` (Right) were previously mapped, so profile imports assigning a button to Middle Click silently left it unbound
+
+---
+
 ## [1.6.2] - 2026-07-31
 
 ### Fixed

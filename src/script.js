@@ -571,14 +571,21 @@ function connectWebSocket() {
 
         const { key, action, device } = msg;
 
-        // Multi-device filtering: when >1 Azeron is connected, only react to the
-        // device(s) that were used to calibrate this layout (bound during calibration).
-        if (shouldIgnoreDeviceEvent(device)) return;
-
+        // Calibration must see presses from every Azeron interface, unfiltered — it's
+        // the only place that accumulates newly-seen dev_ids into the bound set (see
+        // getBoundDeviceIds/shouldIgnoreDeviceEvent above). Filtering here first would
+        // deadlock: once one interface's dev_id gets bound (e.g. the keyboard-emulation
+        // interface, calibrated first), every later step from a *different* interface
+        // of the same physical device (e.g. its mouse-click interface) would be dropped
+        // before ever reaching calibrationRecordKey, so it could never get added.
         if (calibrationActive && action === "down") {
             calibrationRecordKey(key, device);
             return;
         }
+
+        // Multi-device filtering: when >1 Azeron is connected, only react to the
+        // device(s) that were used to calibrate this layout (bound during calibration).
+        if (shouldIgnoreDeviceEvent(device)) return;
 
         if (key in movementState) movementState[key] = action === "down";
         updateJoystick();
@@ -1323,13 +1330,13 @@ const AZERON_MACRO_KV_OVERRIDE = {
 };
 
 // Azeron profile type "15" = a button assigned a native mouse-click function, with
-// keyValues[0] selecting which button. Confirmed from a user's own export (Cyborg II,
-// "Mouse" profile): the two side buttons next to the joystick, one set to Left Click
-// or Right Click respectively, exported as type "15" with keyValues "1" and "3". Other
-// keyValues (e.g. middle/back/forward click) are unconfirmed and intentionally left
-// unmapped rather than guessed.
+// keyValues[0] selecting which button. "1"/"3" confirmed from a Cyborg II "Mouse"
+// profile export (Left/Right Click). "2" confirmed from a Cyro export (software
+// v2.0.1) — by elimination against 1/3 this is Middle Click. Button 4/5 (back/forward)
+// values are still unconfirmed and intentionally left unmapped rather than guessed.
 const MOUSE_CLICK_KV_TO_BIND = {
     "1": { keybind: "mouse1", label: "Left Click" },
+    "2": { keybind: "mouse3", label: "Middle Click" },
     "3": { keybind: "mouse2", label: "Right Click" },
 };
 
